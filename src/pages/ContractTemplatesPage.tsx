@@ -2,7 +2,6 @@ import React, { useState, useId } from 'react';
 import {
   Plus,
   FileText,
-  List,
   AlignLeft,
   Copy,
   Trash2,
@@ -37,18 +36,10 @@ import {
 interface ContractTemplatesPageProps {
   onNavigate: (page: string, id?: string) => void;
 }
-interface MilestoneSet {
-  id: string;
-  name: string;
-  description: string;
-  items: number;
-}
 export function ContractTemplatesPage({
   onNavigate
 }: ContractTemplatesPageProps) {
-  const [activeTab, setActiveTab] = useState<'full' | 'milestones' | 'clauses'>(
-    'full'
-  );
+  const [activeTab, setActiveTab] = useState<'full' | 'clauses'>('full');
   const [clauses, setClauses] = useState<Clause[]>(() => getAllClauses());
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -63,41 +54,6 @@ export function ContractTemplatesPage({
     content: '',
     category: 'general' as Clause['category']
   });
-  const [milestoneTemplates, setMilestoneTemplates] = useState<MilestoneSet[]>([
-  {
-    id: 'm1',
-    name: 'Standard 4-Draw Schedule',
-    description:
-    'Deposit (25%) → Rough-in (25%) → Finishes (25%) → Completion (25%)',
-    items: 4
-  },
-  {
-    id: 'm2',
-    name: 'Small Project (50/50)',
-    description: 'Deposit (50%) → Completion (50%)',
-    items: 2
-  },
-  {
-    id: 'm3',
-    name: '6-Milestone Kitchen Set',
-    description:
-    'Deposit → Demo → Rough-In → Cabinets → Appliances → Final Trim',
-    items: 6
-  }]
-  );
-  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(
-    null
-  );
-  const [milestoneDraft, setMilestoneDraft] = useState({
-    name: '',
-    description: ''
-  });
-  const [showCreateMilestone, setShowCreateMilestone] = useState(false);
-  const [newMilestone, setNewMilestone] = useState({
-    name: '',
-    description: '',
-    items: ''
-  });
   const [expandedClauseId, setExpandedClauseId] = useState<string | null>(null);
   const [localTemplates, setLocalTemplates] = useState<FullTemplate[]>(() => [
   ...fullTemplates]
@@ -105,6 +61,7 @@ export function ContractTemplatesPage({
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
     null
   );
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [templateDraft, setTemplateDraft] = useState<{
     name: string;
     description: string;
@@ -116,6 +73,14 @@ export function ContractTemplatesPage({
       description: string;
     }[];
   }>({
+    name: '',
+    description: '',
+    scope: '',
+    tags: '',
+    milestones: []
+  });
+  const resetTemplateDraft = () =>
+  setTemplateDraft({
     name: '',
     description: '',
     scope: '',
@@ -208,6 +173,41 @@ export function ContractTemplatesPage({
     );
     setEditingTemplateId(null);
   };
+  const handleCreateTemplate = () => {
+    if (!templateDraft.name.trim()) return;
+    const newTemplate: FullTemplate = {
+      id: `t${Date.now()}`,
+      name: templateDraft.name,
+      type: 'full',
+      description: templateDraft.description,
+      scope: templateDraft.scope,
+      contractValue: '',
+      projectType: 'general',
+      usedCount: 0,
+      useCount: 0,
+      lastUsed: 'Never',
+      avgValue:
+      templateDraft.milestones.length > 0 ?
+      `$${templateDraft.milestones.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0).toLocaleString()}` :
+      '$0',
+      milestoneCount: templateDraft.milestones.length,
+      tags: templateDraft.tags.
+      split(',').
+      map((s) => s.trim()).
+      filter(Boolean),
+      milestones: templateDraft.milestones,
+      clauseIds: []
+    };
+    setLocalTemplates((prev) => [...prev, newTemplate]);
+    setIsCreatingTemplate(false);
+    resetTemplateDraft();
+  };
+  const startCreateTemplate = () => {
+    resetTemplateDraft();
+    setEditingTemplateId(null);
+    setIsCreatingTemplate(true);
+    setActiveTab('full');
+  };
   const handleUpdateMilestoneDraft = (
   index: number,
   field: 'name' | 'amount' | 'description',
@@ -244,12 +244,48 @@ export function ContractTemplatesPage({
       milestones: prev.milestones.filter((_, i) => i !== index)
     }));
   };
+  const handleMoveMilestoneDraft = (
+  index: number,
+  direction: 'up' | 'down') =>
+  {
+    setTemplateDraft((prev) => {
+      const updated = [...prev.milestones];
+      const swapIndex = direction === 'up' ? index - 1 : index + 1;
+      if (swapIndex < 0 || swapIndex >= updated.length) return prev;
+      [updated[index], updated[swapIndex]] = [
+      updated[swapIndex],
+      updated[index]];
+
+      return {
+        ...prev,
+        milestones: updated
+      };
+    });
+  };
   const handleUseTemplate = (templateId: string) => {
     const template = localTemplates.find((t) => t.id === templateId);
     if (template) {
       setSelectedTemplate(template);
       onNavigate('new-project');
     }
+  };
+  const handleDuplicateTemplate = (templateId: string) => {
+    const template = localTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+    const duplicate: FullTemplate = {
+      ...template,
+      id: `t${Date.now()}`,
+      name: `${template.name} (Copy)`,
+      usedCount: 0,
+      useCount: 0,
+      lastUsed: 'Never',
+      milestones: template.milestones.map((m) => ({
+        ...m
+      })),
+      tags: [...template.tags],
+      clauseIds: [...template.clauseIds]
+    };
+    setLocalTemplates((prev) => [...prev, duplicate]);
   };
   const handleDeleteMilestone = (id: string) => {
     setMilestoneTemplates((prev) => prev.filter((m) => m.id !== id));
@@ -300,24 +336,24 @@ export function ContractTemplatesPage({
     general: 'General'
   };
   const renderFullTemplates = () => {
-    // If editing, show full-width edit form
-    if (editingTemplateId) {
-      const template = localTemplates.find((t) => t.id === editingTemplateId);
-      if (!template) return null;
+    // Creating new template
+    if (isCreatingTemplate) {
       return (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {/* Edit header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-navy-50 flex items-center justify-center text-navy-900">
                 <FileText className="w-4 h-4" />
               </div>
               <span className="font-semibold text-gray-900">
-                Editing Template
+                New Contract Template
               </span>
             </div>
             <button
-              onClick={() => setEditingTemplateId(null)}
+              onClick={() => {
+                setIsCreatingTemplate(false);
+                resetTemplateDraft();
+              }}
               className="text-gray-400 hover:text-gray-600 p-1">
 
               <X className="w-5 h-5" />
@@ -325,10 +361,10 @@ export function ContractTemplatesPage({
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Name & Description */}
             <div className="grid md:grid-cols-2 gap-4">
               <TextInput
                 label="Template Name"
+                placeholder="e.g. Bathroom Renovation — Full"
                 value={templateDraft.name}
                 onChange={(e) =>
                 setTemplateDraft((p) => ({
@@ -339,7 +375,7 @@ export function ContractTemplatesPage({
 
               <TextInput
                 label="Tags (comma-separated)"
-                placeholder="e.g. Kitchen, Remodel"
+                placeholder="e.g. Bathroom, Remodel"
                 value={templateDraft.tags}
                 onChange={(e) =>
                 setTemplateDraft((p) => ({
@@ -376,7 +412,6 @@ export function ContractTemplatesPage({
               rows={6} />
 
 
-            {/* Milestones */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Payment Milestones
@@ -388,8 +423,26 @@ export function ContractTemplatesPage({
                   className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
 
                     <div className="flex gap-3 items-center">
-                      <div className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">
-                        {i + 1}
+                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                        <button
+                        type="button"
+                        onClick={() => handleMoveMilestoneDraft(i, 'up')}
+                        disabled={i === 0}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-xs font-bold text-gray-400 leading-none">
+                          {i + 1}
+                        </span>
+                        <button
+                        type="button"
+                        onClick={() => handleMoveMilestoneDraft(i, 'down')}
+                        disabled={i === templateDraft.milestones.length - 1}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                       <div className="flex-1">
                         <input
@@ -439,7 +492,7 @@ export function ContractTemplatesPage({
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="pl-9">
+                    <div className="pl-8">
                       <textarea
                       placeholder="What's included in this milestone? (shown to homeowner)"
                       value={m.description ?? ''}
@@ -471,7 +524,212 @@ export function ContractTemplatesPage({
               </button>
             </div>
 
-            {/* Actions */}
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <PrimaryButton
+                size="sm"
+                onClick={handleCreateTemplate}
+                disabled={!templateDraft.name.trim()}>
+
+                <Check className="w-4 h-4 mr-1.5" /> Save Template
+              </PrimaryButton>
+              <SecondaryButton
+                size="sm"
+                onClick={() => {
+                  setIsCreatingTemplate(false);
+                  resetTemplateDraft();
+                }}>
+
+                Cancel
+              </SecondaryButton>
+            </div>
+          </div>
+        </div>);
+
+    }
+    // Editing existing template
+    if (editingTemplateId) {
+      const template = localTemplates.find((t) => t.id === editingTemplateId);
+      if (!template) return null;
+      return (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-navy-50 flex items-center justify-center text-navy-900">
+                <FileText className="w-4 h-4" />
+              </div>
+              <span className="font-semibold text-gray-900">
+                Editing Template
+              </span>
+            </div>
+            <button
+              onClick={() => setEditingTemplateId(null)}
+              className="text-gray-400 hover:text-gray-600 p-1">
+
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="grid md:grid-cols-2 gap-4">
+              <TextInput
+                label="Template Name"
+                value={templateDraft.name}
+                onChange={(e) =>
+                setTemplateDraft((p) => ({
+                  ...p,
+                  name: e.target.value
+                }))
+                } />
+
+              <TextInput
+                label="Tags (comma-separated)"
+                placeholder="e.g. Kitchen, Remodel"
+                value={templateDraft.tags}
+                onChange={(e) =>
+                setTemplateDraft((p) => ({
+                  ...p,
+                  tags: e.target.value
+                }))
+                } />
+
+            </div>
+            <TextareaInput
+              label="Short Description"
+              placeholder="Brief summary shown on the template card"
+              value={templateDraft.description}
+              onChange={(e) =>
+              setTemplateDraft((p) => ({
+                ...p,
+                description: e.target.value
+              }))
+              }
+              rows={2} />
+
+            <TextareaInput
+              label="Scope of Work"
+              placeholder="Full scope text that will appear in the contract..."
+              value={templateDraft.scope}
+              onChange={(e) =>
+              setTemplateDraft((p) => ({
+                ...p,
+                scope: e.target.value
+              }))
+              }
+              rows={6} />
+
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Payment Milestones
+              </label>
+              <div className="space-y-3">
+                {templateDraft.milestones.map((m, i) =>
+                <div
+                  key={i}
+                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+
+                    <div className="flex gap-3 items-center">
+                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                        <button
+                        type="button"
+                        onClick={() => handleMoveMilestoneDraft(i, 'up')}
+                        disabled={i === 0}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-xs font-bold text-gray-400 leading-none">
+                          {i + 1}
+                        </span>
+                        <button
+                        type="button"
+                        onClick={() => handleMoveMilestoneDraft(i, 'down')}
+                        disabled={i === templateDraft.milestones.length - 1}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex-1">
+                        <input
+                        type="text"
+                        placeholder="Milestone name"
+                        value={m.name}
+                        onChange={(e) =>
+                        handleUpdateMilestoneDraft(
+                          i,
+                          'name',
+                          e.target.value
+                        )
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
+                        style={{
+                          overflowX: 'hidden'
+                        }} />
+
+                      </div>
+                      <div className="w-32">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">
+                            $
+                          </span>
+                          <input
+                          type="text"
+                          placeholder="0"
+                          value={m.amount}
+                          onChange={(e) =>
+                          handleUpdateMilestoneDraft(
+                            i,
+                            'amount',
+                            e.target.value
+                          )
+                          }
+                          className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-mono text-right bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
+                          style={{
+                            overflowX: 'hidden'
+                          }} />
+
+                        </div>
+                      </div>
+                      <button
+                      onClick={() => handleRemoveMilestoneDraft(i)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="pl-8">
+                      <textarea
+                      placeholder="What's included in this milestone?"
+                      value={m.description ?? ''}
+                      onChange={(e) =>
+                      handleUpdateMilestoneDraft(
+                        i,
+                        'description',
+                        e.target.value
+                      )
+                      }
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900 resize-none text-gray-600"
+                      style={{
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap',
+                        overflowX: 'hidden'
+                      }} />
+
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleAddMilestoneDraft}
+                className="mt-3 flex items-center gap-2 text-sm text-navy-900 font-medium hover:text-navy-700 transition-colors">
+
+                <Plus className="w-4 h-4" /> Add Milestone
+              </button>
+            </div>
+
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <PrimaryButton
                 size="sm"
@@ -503,12 +761,10 @@ export function ContractTemplatesPage({
                 Full Contract
               </span>
             </div>
-
             <h3 className="font-bold text-gray-900 mb-2">{template.name}</h3>
             <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-2">
               {template.description}
             </p>
-
             <div className="flex flex-wrap gap-1 mb-4">
               {template.tags.map((tag) =>
             <span
@@ -519,7 +775,6 @@ export function ContractTemplatesPage({
                 </span>
             )}
             </div>
-
             <div className="flex items-center justify-between text-xs text-gray-400 mb-4 pt-4 border-t border-gray-100">
               <span>Used {template.usedCount}×</span>
               <span>{template.milestones.length} milestones</span>
@@ -527,19 +782,24 @@ export function ContractTemplatesPage({
                 {template.avgValue}
               </span>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <SecondaryButton
               size="sm"
               onClick={() => handleStartEditTemplate(template)}>
 
-                <Edit2 className="w-3.5 h-3.5 mr-1.5" /> Edit
+                <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit
+              </SecondaryButton>
+              <SecondaryButton
+              size="sm"
+              onClick={() => handleDuplicateTemplate(template.id)}>
+
+                <Copy className="w-3.5 h-3.5 mr-1" /> Duplicate
               </SecondaryButton>
               <PrimaryButton
               size="sm"
               onClick={() => handleUseTemplate(template.id)}>
 
-                Use Template
+                Use
               </PrimaryButton>
             </div>
           </BasicCard>
@@ -547,7 +807,7 @@ export function ContractTemplatesPage({
 
         <button
           className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-8 hover:border-navy-300 hover:bg-navy-50 transition-all group h-full min-h-[280px]"
-          onClick={() => {}}>
+          onClick={startCreateTemplate}>
 
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-navy-600 mb-4 transition-colors">
             <Plus className="w-6 h-6" />
@@ -559,149 +819,6 @@ export function ContractTemplatesPage({
       </div>);
 
   };
-  const renderMilestoneSets = () =>
-  <div className="space-y-4">
-      {milestoneTemplates.map((set) =>
-    <div
-      key={set.id}
-      className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-
-          {editingMilestoneId === set.id ?
-      <div className="p-4 space-y-3">
-              <TextInput
-          label="Set Name"
-          value={milestoneDraft.name}
-          onChange={(e) =>
-          setMilestoneDraft((prev) => ({
-            ...prev,
-            name: e.target.value
-          }))
-          } />
-
-              <TextInput
-          label="Description"
-          value={milestoneDraft.description}
-          onChange={(e) =>
-          setMilestoneDraft((prev) => ({
-            ...prev,
-            description: e.target.value
-          }))
-          } />
-
-              <div className="flex gap-3 pt-2">
-                <PrimaryButton
-            size="sm"
-            onClick={() => handleSaveMilestone(set.id)}>
-
-                  <Check className="w-4 h-4 mr-1" /> Save
-                </PrimaryButton>
-                <SecondaryButton
-            size="sm"
-            onClick={() => setEditingMilestoneId(null)}>
-
-                  Cancel
-                </SecondaryButton>
-              </div>
-            </div> :
-
-      <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                  <List className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">{set.name}</h3>
-                  <p className="text-sm text-gray-500">{set.description}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                  {set.items} Milestones
-                </span>
-                <div className="h-4 w-px bg-gray-200 mx-1" />
-                <button
-            onClick={() => {
-              setEditingMilestoneId(set.id);
-              setMilestoneDraft({
-                name: set.name,
-                description: set.description
-              });
-            }}
-            className="p-2 text-gray-400 hover:text-navy-900 hover:bg-gray-100 rounded-lg transition-colors">
-
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-            onClick={() => handleDeleteMilestone(set.id)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-      }
-        </div>
-    )}
-
-      {showCreateMilestone ?
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-          <h3 className="font-bold text-gray-900">New Milestone Set</h3>
-          <TextInput
-        label="Set Name"
-        placeholder="e.g. Standard 4-Draw Schedule"
-        value={newMilestone.name}
-        onChange={(e) =>
-        setNewMilestone((prev) => ({
-          ...prev,
-          name: e.target.value
-        }))
-        } />
-
-          <TextInput
-        label="Description"
-        placeholder="e.g. Deposit → Rough-in → Finishes → Completion"
-        value={newMilestone.description}
-        onChange={(e) =>
-        setNewMilestone((prev) => ({
-          ...prev,
-          description: e.target.value
-        }))
-        } />
-
-          <TextInput
-        label="Number of Milestones"
-        type="number"
-        placeholder="4"
-        value={newMilestone.items}
-        onChange={(e) =>
-        setNewMilestone((prev) => ({
-          ...prev,
-          items: e.target.value
-        }))
-        } />
-
-          <div className="flex gap-3">
-            <PrimaryButton size="sm" onClick={handleCreateMilestone}>
-              Save Set
-            </PrimaryButton>
-            <SecondaryButton
-          size="sm"
-          onClick={() => setShowCreateMilestone(false)}>
-
-              Cancel
-            </SecondaryButton>
-          </div>
-        </div> :
-
-    <button
-      onClick={() => setShowCreateMilestone(true)}
-      className="w-full py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-navy-300 hover:text-navy-900 hover:bg-navy-50 transition-all flex items-center justify-center gap-2">
-
-          <Plus className="w-5 h-5" /> Create Milestone Set
-        </button>
-    }
-    </div>;
-
   const renderClauses = () =>
   <div className="space-y-3">
       {/* Search */}
@@ -1020,13 +1137,7 @@ export function ContractTemplatesPage({
       <HeaderBar
         title="Contract Templates"
         rightAction={
-        <PrimaryButton
-          size="sm"
-          onClick={() => {
-            setActiveTab('clauses');
-            setShowCreateClause(true);
-          }}>
-
+        <PrimaryButton size="sm" onClick={startCreateTemplate}>
             <Plus className="w-4 h-4 mr-2" />
             New Template
           </PrimaryButton>
@@ -1035,24 +1146,19 @@ export function ContractTemplatesPage({
 
       <div className="p-4 lg:p-8 max-w-6xl mx-auto w-full">
         <div className="flex gap-1 bg-gray-200/50 p-1 rounded-xl w-fit mb-8">
-          {(['full', 'milestones', 'clauses'] as const).map((tab) =>
+          {(['full', 'clauses'] as const).map((tab) =>
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
 
-              {tab === 'full' ?
-            'Full Templates' :
-            tab === 'milestones' ?
-            'Milestone Sets' :
-            'Scope Clauses'}
+              {tab === 'full' ? 'Full Templates' : 'Scope Clauses'}
             </button>
           )}
         </div>
 
         <div className="animate-in fade-in duration-300">
           {activeTab === 'full' && renderFullTemplates()}
-          {activeTab === 'milestones' && renderMilestoneSets()}
           {activeTab === 'clauses' && renderClauses()}
         </div>
       </div>

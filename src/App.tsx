@@ -40,6 +40,9 @@ import { ContractsListPage } from './pages/ContractsListPage';
 import { HomeownerContractReviewPage } from './pages/HomeownerContractReviewPage';
 import { ContractTemplatesPage } from './pages/ContractTemplatesPage';
 import { TransactionHistoryPage } from './pages/TransactionHistoryPage';
+import { LoginPage } from './pages/LoginPage';
+import { DrawsListPage } from './pages/DrawsListPage';
+import { DisputePage } from './pages/DisputePage';
 const contractorNavItems = [
 {
   id: 'dashboard',
@@ -120,6 +123,7 @@ const homeownerNavItems = [
 }];
 
 export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<'contractor' | 'homeowner'>(
     'contractor'
   );
@@ -162,6 +166,16 @@ export function App() {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+  const handleLogin = (role: 'contractor' | 'homeowner') => {
+    setUserRole(role);
+    setActivePage('dashboard');
+    setIsAuthenticated(true);
+  };
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setActivePage('dashboard');
+    setSelectedId(undefined);
+  };
   const handleNavigate = (page: string, id?: string) => {
     setActivePage(page);
     if (id !== undefined) setSelectedId(id);
@@ -199,7 +213,7 @@ export function App() {
         <HomeownerDashboard onNavigate={handleNavigate} addToast={addToast} />;
 
       case 'projects':
-        return <ProjectsPage onNavigate={handleNavigate} />;
+        return <ProjectsPage onNavigate={handleNavigate} userRole={userRole} />;
       case 'contracts':
         return <ContractsListPage onNavigate={handleNavigate} />;
       case 'contract-templates':
@@ -248,14 +262,7 @@ export function App() {
           <DailyLogPage projectId={selectedId} onNavigate={handleNavigate} />);
 
       case 'draws':
-        return (
-          <DrawRequestPage
-            drawId={selectedId}
-            onNavigate={handleNavigate}
-            userRole={userRole}
-            addToast={addToast} />);
-
-
+        return <DrawsListPage onNavigate={handleNavigate} userRole={userRole} />;
       case 'draw-detail':
         return (
           <DrawRequestPage
@@ -265,8 +272,17 @@ export function App() {
             addToast={addToast} />);
 
 
+      case 'dispute':
+        return (
+          <DisputePage
+            drawId={selectedId}
+            onNavigate={handleNavigate}
+            userRole={userRole}
+            addToast={addToast} />);
+
+
       case 'messages':
-        return <MessagingPage userRole={userRole} />;
+        return <MessagingPage userRole={userRole} onNavigate={handleNavigate} />;
       case 'receipts':
         return <ReceiptsPage />;
       case 'reviews':
@@ -274,7 +290,7 @@ export function App() {
       case 'verification':
         return <VerificationPage />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage addToast={addToast} userRole={userRole} />;
       default:
         return null;
     }
@@ -286,6 +302,15 @@ export function App() {
   activePage === 'draw-detail' ?
   'draws' :
   activePage;
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <>
+        <ToastContainer toasts={toasts} removeToast={removeToast} />
+        <LoginPage onLogin={handleLogin} />
+      </>);
+
+  }
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -349,7 +374,11 @@ export function App() {
                 {userRole}
               </p>
             </div>
-            <button className="text-white/40 hover:text-white transition-colors">
+            <button
+              onClick={handleLogout}
+              className="text-white/40 hover:text-white transition-colors"
+              title="Sign out">
+
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -376,22 +405,6 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Role Switcher */}
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => handleRoleSwitch('contractor')}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${userRole === 'contractor' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-
-                Contractor
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('homeowner')}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${userRole === 'homeowner' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-
-                Homeowner
-              </button>
-            </div>
-
             <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
@@ -409,7 +422,8 @@ export function App() {
           <MobileBottomNav
             activeItem={activeNavItem}
             onItemClick={handleNavigate}
-            userType={userRole} />
+            userType={userRole}
+            onLogout={handleLogout} />
 
         </div>
       </main>

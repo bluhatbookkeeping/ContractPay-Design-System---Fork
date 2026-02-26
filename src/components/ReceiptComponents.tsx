@@ -1,5 +1,5 @@
-import React from 'react';
-import { MoreVertical, Share2, Trash2, Pencil } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { MoreVertical, Share2, Trash2, Pencil, EyeOff } from 'lucide-react';
 export type ReceiptCategory =
 'materials' |
 'labor' |
@@ -28,6 +28,17 @@ export function ReceiptCard({
   onDelete,
   onToggleShare
 }: ReceiptCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
   const categoryColors: Record<ReceiptCategory, string> = {
     materials: 'bg-blue-100 text-blue-700',
     labor: 'bg-purple-100 text-purple-700',
@@ -63,18 +74,70 @@ export function ReceiptCard({
             {receipt.category}
           </span>
           <span className="text-xs text-gray-500">{receipt.date}</span>
-          {receipt.isShared &&
+          {receipt.isShared ?
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100 flex items-center gap-1">
               <Share2 className="w-3 h-3" /> Shared
+            </span> :
+
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200 flex items-center gap-1">
+              <EyeOff className="w-3 h-3" /> Hidden
             </span>
           }
         </div>
       </div>
 
-      <div className="relative">
-        <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((prev) => !prev)}
+          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+
           <MoreVertical className="w-5 h-5" />
         </button>
+
+        {menuOpen &&
+        <div className="absolute right-0 top-8 z-50 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-100">
+            <button
+            onClick={() => {
+              setMenuOpen(false);
+              onEdit?.();
+            }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+
+              <Pencil className="w-4 h-4 text-gray-400" />
+              Edit Receipt
+            </button>
+            <button
+            onClick={() => {
+              setMenuOpen(false);
+              onToggleShare?.();
+            }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+
+              {receipt.isShared ?
+            <>
+                  <EyeOff className="w-4 h-4 text-gray-400" /> Hide from
+                  Homeowner
+                </> :
+
+            <>
+                  <Share2 className="w-4 h-4 text-gray-400" /> Share with
+                  Homeowner
+                </>
+            }
+            </button>
+            <div className="my-1 border-t border-gray-100" />
+            <button
+            onClick={() => {
+              setMenuOpen(false);
+              onDelete?.();
+            }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+
+              <Trash2 className="w-4 h-4" />
+              Delete Receipt
+            </button>
+          </div>
+        }
       </div>
     </div>);
 

@@ -1,5 +1,14 @@
 import React, { useState, Component } from 'react';
-import { FileText } from 'lucide-react';
+import {
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Share2 } from
+'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { StatusBadge } from '../components/Badges';
 import { MilestoneProgress } from '../components/Progress';
@@ -38,6 +47,21 @@ export function ProjectDetailPage({
   const projectDraws = draws.filter((d) => d.projectId === project.id);
   const projectReceipts = receipts.filter((r) => r.projectId === project.id);
   const totalReceipts = projectReceipts.reduce((sum, r) => sum + r.amount, 0);
+  // Compute real disputed amount from draws
+  const disputedAmount = projectDraws.
+  filter((d) => d.status === 'disputed' as any).
+  reduce((sum, d) => sum + d.amount, 0);
+  // Find draw for a given milestone and navigate appropriately
+  const handleMilestoneClick = (milestoneId: string) => {
+    const draw = projectDraws.find((d) => d.milestoneId === milestoneId);
+    if (draw) {
+      if (draw.status === 'disputed' as any) {
+        onNavigate('dispute', draw.id);
+      } else {
+        onNavigate('draw-detail', draw.id);
+      }
+    }
+  };
   const tabs = [
   {
     id: 'overview',
@@ -96,7 +120,10 @@ export function ProjectDetailPage({
         </div>
 
         <div className="mb-8">
-          <MilestoneProgress milestones={project.milestones} />
+          <MilestoneProgress
+            milestones={project.milestones}
+            onMilestoneClick={handleMilestoneClick} />
+
         </div>
 
         <div className="flex gap-6 overflow-x-auto">
@@ -114,19 +141,19 @@ export function ProjectDetailPage({
 
       <div className="p-6">
         {activeTab === 'overview' &&
-        <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <h3 className="text-lg font-bold text-gray-900">
-                Financial Status
-              </h3>
+        <div className="space-y-6">
+            <h3 className="text-lg font-bold text-gray-900">
+              Financial Status
+            </h3>
+            <div className="grid lg:grid-cols-2 gap-6 items-start">
               <EscrowBalanceCard
               totalBalance={project.escrow.total}
               available={project.escrow.available}
               holdback={project.escrow.holdback}
-              disputed={project.escrow.disputed}
+              disputed={disputedAmount}
               userType={userRole} />
 
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 h-full">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-bold uppercase text-gray-500">
                     Project Details
@@ -192,7 +219,8 @@ export function ProjectDetailPage({
         <ChangeOrderPage
           projectId={projectId}
           onNavigate={onNavigate}
-          embedded />
+          embedded
+          userRole={userRole} />
 
         }
 
@@ -200,55 +228,206 @@ export function ProjectDetailPage({
         <DailyLogPage
           projectId={projectId}
           onNavigate={onNavigate}
-          embedded />
+          embedded
+          userRole={userRole} />
 
         }
 
         {activeTab === 'draws' &&
-        <div className="space-y-6 max-w-3xl mx-auto">
-            {projectDraws.map((draw) =>
-          <DrawRequestCard
-            key={draw.id}
-            status={draw.status}
-            date={draw.dateSubmitted}
-            milestoneName={draw.milestoneName}
-            amount={draw.amount}
-            photos={draw.photos}
-            hoursRemaining={draw.hoursRemaining}
-            onApprove={() => onNavigate('draw-detail', draw.id)} />
+        <div className="max-w-3xl mx-auto space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-gray-900">Draw Requests</h3>
+              <span className="text-sm text-gray-500">
+                {projectDraws.length} total
+              </span>
+            </div>
+            {projectDraws.length === 0 ?
+          <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+                <p className="text-gray-400 text-sm">
+                  No draw requests yet for this project.
+                </p>
+              </div> :
 
-          )}
+          projectDraws.map((draw) => {
+            const isDisputed = draw.status === 'disputed' as any;
+            const isApproved = draw.status === 'approved';
+            const isPending = draw.status === 'pending';
+            return (
+              <button
+                key={draw.id}
+                onClick={() =>
+                isDisputed ?
+                onNavigate('dispute', draw.id) :
+                onNavigate('draw-detail', draw.id)
+                }
+                className={`w-full text-left bg-white rounded-xl border p-4 flex items-center gap-4 hover:shadow-sm transition-all ${isDisputed ? 'border-red-200 hover:border-red-300' : draw.type === 'change-order' ? 'border-amber-200 hover:border-amber-300' : 'border-gray-200 hover:border-[#1e3a5f]/30'}`}>
+
+                    {/* Status icon */}
+                    <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isDisputed ? 'bg-red-100 text-red-600' : isApproved ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+
+                      {isDisputed ?
+                  <AlertTriangle className="w-5 h-5" /> :
+                  isApproved ?
+                  <CheckCircle className="w-5 h-5" /> :
+
+                  <Clock className="w-5 h-5" />
+                  }
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="font-semibold text-gray-900 truncate">
+                          {draw.milestoneName}
+                        </p>
+                        {draw.type === 'change-order' &&
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Change Order
+                          </span>
+                    }
+                        {isDisputed &&
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Disputed
+                          </span>
+                    }
+                        {isPending &&
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Pending
+                          </span>
+                    }
+                        {isApproved &&
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Approved
+                          </span>
+                    }
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {draw.dateSubmitted}
+                      </p>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="text-right flex-shrink-0">
+                      <p
+                    className={`font-bold font-mono text-lg ${isDisputed ? 'text-red-600' : isApproved ? 'text-green-600' : draw.type === 'change-order' ? 'text-amber-700' : 'text-[#1e3a5f]'}`}>
+
+                        ${draw.amount.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  </button>);
+
+          })
+          }
           </div>
         }
 
         {activeTab === 'receipts' &&
         <div className="space-y-6 max-w-3xl mx-auto">
-            <CostSummaryCard
-            totalReceipts={totalReceipts}
-            contractAmount={project.contractAmount}
-            categoryBreakdown={[
-            {
-              category: 'materials',
-              amount: 8000,
-              color: 'bg-blue-500'
-            },
-            {
-              category: 'labor',
-              amount: 3000,
-              color: 'bg-purple-500'
-            },
-            {
-              category: 'equipment',
-              amount: 1500,
-              color: 'bg-teal-500'
-            }]
-            } />
+            {userRole === 'homeowner' ?
+          // Homeowner view: only shared receipts
+          <>
+                <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <Share2 className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900">
+                      Shared Receipts
+                    </p>
+                    <p className="text-sm text-blue-700 mt-0.5">
+                      Your contractor has shared these receipts with you as
+                      proof of materials and expenses for your project.
+                    </p>
+                  </div>
+                </div>
 
-            <div className="space-y-3">
-              {projectReceipts.map((receipt) =>
-            <ReceiptCard key={receipt.id} receipt={receipt} />
-            )}
-            </div>
+                {projectReceipts.filter((r) => r.isShared).length === 0 ?
+            <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+                    <EyeOff className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">
+                      No receipts shared yet
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Your contractor hasn't shared any receipts with you yet.
+                    </p>
+                  </div> :
+
+            <>
+                    <CostSummaryCard
+                totalReceipts={projectReceipts.
+                filter((r) => r.isShared).
+                reduce((sum, r) => sum + r.amount, 0)}
+                contractAmount={project.contractAmount}
+                categoryBreakdown={[
+                {
+                  category: 'materials',
+                  amount: 8000,
+                  color: 'bg-blue-500'
+                },
+                {
+                  category: 'equipment',
+                  amount: 1500,
+                  color: 'bg-teal-500'
+                }]
+                } />
+
+                    <div className="space-y-3">
+                      {projectReceipts.
+                filter((r) => r.isShared).
+                map((receipt) =>
+                <ReceiptCard key={receipt.id} receipt={receipt} />
+                )}
+                    </div>
+                  </>
+            }
+              </> :
+
+          // Contractor view: all receipts, shared/hidden visible
+          <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">
+                      <span className="font-semibold text-green-700">
+                        {projectReceipts.filter((r) => r.isShared).length}{' '}
+                        shared
+                      </span>
+                      <span className="mx-1.5 text-gray-300">·</span>
+                      <span className="text-gray-500">
+                        {projectReceipts.filter((r) => !r.isShared).length}{' '}
+                        hidden from homeowner
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <CostSummaryCard
+              totalReceipts={totalReceipts}
+              contractAmount={project.contractAmount}
+              categoryBreakdown={[
+              {
+                category: 'materials',
+                amount: 8000,
+                color: 'bg-blue-500'
+              },
+              {
+                category: 'labor',
+                amount: 3000,
+                color: 'bg-purple-500'
+              },
+              {
+                category: 'equipment',
+                amount: 1500,
+                color: 'bg-teal-500'
+              }]
+              } />
+
+                <div className="space-y-3">
+                  {projectReceipts.map((receipt) =>
+              <ReceiptCard key={receipt.id} receipt={receipt} />
+              )}
+                </div>
+              </>
+          }
           </div>
         }
 

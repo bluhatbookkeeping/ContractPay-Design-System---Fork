@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, AlertTriangle } from 'lucide-react';
 interface ProgressBarProps {
   value: number;
   color?: 'navy' | 'green';
@@ -36,12 +36,16 @@ interface Milestone {
   id: string;
   name: string;
   amount: number;
-  status: 'completed' | 'current' | 'upcoming';
+  status: 'completed' | 'current' | 'upcoming' | 'disputed';
 }
 interface MilestoneProgressProps {
   milestones: Milestone[];
+  onMilestoneClick?: (milestoneId: string) => void;
 }
-export function MilestoneProgress({ milestones }: MilestoneProgressProps) {
+export function MilestoneProgress({
+  milestones,
+  onMilestoneClick
+}: MilestoneProgressProps) {
   return (
     <div className="w-full overflow-x-auto pb-4">
       <div className="flex items-start min-w-max px-4">
@@ -49,6 +53,9 @@ export function MilestoneProgress({ milestones }: MilestoneProgressProps) {
           const isLast = index === milestones.length - 1;
           const isCompleted = milestone.status === 'completed';
           const isCurrent = milestone.status === 'current';
+          const isDisputed = milestone.status === 'disputed';
+          const isClickable =
+          !!onMilestoneClick && (isCompleted || isCurrent || isDisputed);
           return (
             <div
               key={milestone.id}
@@ -57,31 +64,42 @@ export function MilestoneProgress({ milestones }: MilestoneProgressProps) {
               {/* Connector Line */}
               {!isLast &&
               <div
-                className={`absolute top-4 left-[50%] w-full h-0.5 -z-10 ${isCompleted ? 'bg-green-600' : 'bg-gray-200'}`} />
+                className={`absolute top-4 left-[50%] w-full h-0.5 -z-10 ${isCompleted ? 'bg-green-600' : isDisputed ? 'bg-red-400' : 'bg-gray-200'}`} />
 
               }
 
               {/* Node */}
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 z-10 bg-white transition-colors ${isCompleted ? 'border-green-600 bg-green-600 text-white' : isCurrent ? 'border-navy-900 text-navy-900' : 'border-gray-300 text-gray-300'}`}>
+              <button
+                onClick={() => isClickable && onMilestoneClick?.(milestone.id)}
+                disabled={!isClickable}
+                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 z-10 transition-all ${isDisputed ? 'border-red-500 bg-red-500 text-white hover:bg-red-600 cursor-pointer shadow-sm' : isCompleted ? 'border-green-600 bg-green-600 text-white hover:bg-green-700 cursor-pointer' : isCurrent ? 'border-navy-900 text-navy-900 bg-white hover:bg-navy-50 cursor-pointer' : 'border-gray-300 text-gray-300 bg-white cursor-default'}`}>
 
-                {isCompleted ?
+                {isDisputed ?
+                <AlertTriangle className="w-4 h-4" /> :
+                isCompleted ?
                 <Check className="w-5 h-5" /> :
 
                 <span className="text-xs font-bold">{index + 1}</span>
                 }
-              </div>
+              </button>
 
               {/* Label */}
               <div className="mt-2 text-center w-32">
                 <p
-                  className={`text-sm font-medium ${isCurrent ? 'text-navy-900' : 'text-gray-500'}`}>
+                  className={`text-sm font-medium ${isDisputed ? 'text-red-600' : isCurrent ? 'text-navy-900' : 'text-gray-500'}`}>
 
                   {milestone.name}
                 </p>
-                <p className="text-xs font-mono text-gray-400 mt-0.5">
+                <p
+                  className={`text-xs font-mono mt-0.5 ${isDisputed ? 'text-red-400' : 'text-gray-400'}`}>
+
                   ${milestone.amount.toLocaleString()}
                 </p>
+                {isDisputed &&
+                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">
+                    Disputed
+                  </span>
+                }
               </div>
             </div>);
 

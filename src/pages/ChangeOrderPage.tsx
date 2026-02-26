@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { FileText, Plus, DollarSign, Clock, Check, X } from 'lucide-react';
+import {
+  FileText,
+  Plus,
+  DollarSign,
+  Clock,
+  Check,
+  X,
+  XCircle } from
+'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { StatusBadge } from '../components/Badges';
 import {
@@ -14,64 +22,81 @@ import {
   TextareaInput } from
 '../components/FormElements';
 import { ConfirmationModal } from '../components/Modals';
+import { changeOrders as mockChangeOrders } from '../data/mockData';
 interface ChangeOrderPageProps {
   projectId?: string;
   onNavigate: (page: string, id?: string) => void;
   embedded?: boolean;
+  userRole?: 'contractor' | 'homeowner';
 }
 export function ChangeOrderPage({
   projectId,
   onNavigate,
-  embedded = false
+  embedded = false,
+  userRole = 'contractor'
 }: ChangeOrderPageProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState<
+    'cancel' | 'approve' | 'reject'>(
+    'cancel');
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
-  // Mock data
-  const changeOrders = [
-  {
-    id: 'co-1',
-    title: 'Upgrade Kitchen Faucet',
-    description:
-    'Client requested to upgrade from standard chrome faucet to matte black touchless model.',
-    amount: 450.0,
-    status: 'approved',
-    dateSubmitted: 'Jan 25, 2025',
-    impactDays: 0
-  },
-  {
-    id: 'co-2',
-    title: 'Additional Recessed Lighting',
-    description:
-    'Add 4 additional 6-inch recessed LED cans in the living room area.',
-    amount: 1200.0,
-    status: 'pending',
-    dateSubmitted: 'Feb 02, 2025',
-    impactDays: 1
-  },
-  {
-    id: 'co-3',
-    title: 'Shower Niche Modification',
-    description: 'Change shower niche size from 12x12 to 12x24 horizontal.',
-    amount: 350.0,
-    status: 'rejected',
-    dateSubmitted: 'Jan 15, 2025',
-    impactDays: 0
-  }];
-
+  const [cancelledOrders, setCancelledOrders] = useState<string[]>([]);
+  const changeOrders = mockChangeOrders.
+  filter((o) => o.projectId === (projectId || 'p1')).
+  filter((o) => !cancelledOrders.includes(o.id));
   const handleCreate = () => {
     setIsCreating(false);
-    // Logic to add new change order would go here
+  };
+  const handleConfirmModal = () => {
+    if (modalAction === 'cancel' && selectedOrder) {
+      setCancelledOrders((prev) => [...prev, selectedOrder]);
+    }
+    setModalOpen(false);
+    setSelectedOrder(null);
+  };
+  const openModal = (
+  action: 'cancel' | 'approve' | 'reject',
+  orderId: string) =>
+  {
+    setModalAction(action);
+    setSelectedOrder(orderId);
+    setModalOpen(true);
+  };
+  const modalConfig = {
+    cancel: {
+      title: 'Cancel Change Order',
+      message:
+      'Are you sure you want to cancel this change order? It will be removed from the project.',
+      confirmText: 'Yes, Cancel It',
+      icon: undefined as any
+    },
+    approve: {
+      title: 'Approve Change Order',
+      message:
+      'Approving this change order will add the cost and schedule impact to the contract.',
+      confirmText: 'Approve',
+      icon: 'success' as any
+    },
+    reject: {
+      title: 'Reject Change Order',
+      message:
+      'Are you sure you want to reject this change order? The contractor will be notified.',
+      confirmText: 'Reject',
+      icon: undefined as any
+    }
   };
   const content =
   <div className="space-y-6">
       {!embedded && !isCreating &&
     <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Change Orders</h2>
-          <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Change Order
-          </PrimaryButton>
+          {userRole === 'contractor' &&
+      <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Change Order
+            </PrimaryButton>
+      }
         </div>
     }
 
@@ -94,7 +119,6 @@ export function ChangeOrderPage({
           label="Description"
           placeholder="Describe the changes and reason..." />
 
-
             <div className="flex justify-end gap-3 pt-4">
               <SecondaryButton onClick={() => setIsCreating(false)}>
                 Cancel
@@ -107,7 +131,7 @@ export function ChangeOrderPage({
         </div> :
 
     <div className="grid gap-4">
-          {embedded &&
+          {embedded && userRole === 'contractor' &&
       <div className="flex justify-end mb-2">
               <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -119,7 +143,7 @@ export function ChangeOrderPage({
           {changeOrders.map((order) =>
       <div
         key={order.id}
-        className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+        className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
 
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-start gap-3">
@@ -154,23 +178,29 @@ export function ChangeOrderPage({
             }
                 </div>
 
-                {order.status === 'pending' &&
+                {/* Contractor: can only cancel pending orders */}
+                {userRole === 'contractor' && order.status === 'pending' &&
+          <DangerButton
+            size="sm"
+            onClick={() => openModal('cancel', order.id)}>
+
+                    <XCircle className="w-4 h-4 mr-1.5" />
+                    Cancel Request
+                  </DangerButton>
+          }
+
+                {/* Homeowner: can approve or reject pending orders */}
+                {userRole === 'homeowner' && order.status === 'pending' &&
           <div className="flex gap-2">
                     <DangerButton
               size="sm"
-              onClick={() => {
-                setSelectedOrder(order.id);
-                setModalOpen(true);
-              }}>
+              onClick={() => openModal('reject', order.id)}>
 
                       Reject
                     </DangerButton>
                     <SuccessButton
               size="sm"
-              onClick={() => {
-                setSelectedOrder(order.id);
-                setModalOpen(true);
-              }}>
+              onClick={() => openModal('approve', order.id)}>
 
                       Approve
                     </SuccessButton>
@@ -185,10 +215,11 @@ export function ChangeOrderPage({
       <ConfirmationModal
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
-      onConfirm={() => setModalOpen(false)}
-      title="Confirm Action"
-      message="Are you sure you want to proceed with this action?"
-      confirmText="Confirm" />
+      onConfirm={handleConfirmModal}
+      title={modalConfig[modalAction].title}
+      message={modalConfig[modalAction].message}
+      confirmText={modalConfig[modalAction].confirmText}
+      icon={modalConfig[modalAction].icon} />
 
     </div>;
 

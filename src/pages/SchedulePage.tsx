@@ -4,7 +4,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  ChevronRight } from
+  ChevronRight,
+  AlertTriangle } from
 'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { StatusBadge } from '../components/Badges';
@@ -36,7 +37,7 @@ export function SchedulePage({
     phase: 'Rough Plumbing',
     startDate: 'Jan 16, 2025',
     endDate: 'Jan 20, 2025',
-    status: 'completed',
+    status: 'disputed',
     progress: 100,
     assignee: 'Mike Plumber'
   },
@@ -99,6 +100,8 @@ export function SchedulePage({
     switch (status) {
       case 'completed':
         return 'text-green-600 bg-green-50 border-green-100';
+      case 'disputed':
+        return 'text-red-600 bg-red-50 border-red-200';
       case 'active':
         return 'text-blue-600 bg-blue-50 border-blue-100';
       case 'upcoming':
@@ -113,6 +116,8 @@ export function SchedulePage({
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-5 h-5" />;
+      case 'disputed':
+        return <AlertTriangle className="w-5 h-5" />;
       case 'active':
         return <Clock className="w-5 h-5" />;
       case 'delayed':
@@ -172,12 +177,18 @@ export function SchedulePage({
                   {/* Progress Bar */}
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
                     <div
-                  className={`h-1.5 rounded-full ${item.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'}`}
+                  className={`h-1.5 rounded-full ${item.status === 'disputed' ? 'bg-red-500' : item.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'}`}
                   style={{
                     width: `${item.progress}%`
                   }} />
 
                   </div>
+                  {item.status === 'disputed' &&
+              <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Payment disputed — draw request under review
+                    </p>
+              }
                 </div>
               </div>
             </div>

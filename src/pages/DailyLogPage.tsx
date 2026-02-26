@@ -21,13 +21,16 @@ interface DailyLogPageProps {
   projectId?: string;
   onNavigate: (page: string, id?: string) => void;
   embedded?: boolean;
+  userRole?: 'contractor' | 'homeowner';
 }
 export function DailyLogPage({
   projectId,
   onNavigate,
-  embedded = false
+  embedded = false,
+  userRole = 'contractor'
 }: DailyLogPageProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const isContractor = userRole === 'contractor';
   // Mock data
   const logs = [
   {
@@ -81,10 +84,12 @@ export function DailyLogPage({
       {!embedded && !isCreating &&
     <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Daily Logs</h2>
-          <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Daily Log
-          </PrimaryButton>
+          {isContractor &&
+      <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Daily Log
+            </PrimaryButton>
+      }
         </div>
     }
 
@@ -146,7 +151,7 @@ export function DailyLogPage({
         </div> :
 
     <div className="space-y-6">
-          {embedded &&
+          {embedded && isContractor &&
       <div className="flex justify-end mb-2">
               <PrimaryButton size="sm" onClick={() => setIsCreating(true)}>
                 <Plus className="w-4 h-4 mr-2" />

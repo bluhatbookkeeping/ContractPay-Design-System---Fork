@@ -18,11 +18,13 @@ interface MobileBottomNavProps {
   activeItem: string;
   onItemClick: (id: string) => void;
   userType: 'contractor' | 'homeowner';
+  onLogout?: () => void;
 }
 export function MobileBottomNav({
   activeItem,
   onItemClick,
-  userType
+  userType,
+  onLogout
 }: MobileBottomNavProps) {
   const items: NavItem[] = [
   {
@@ -54,13 +56,22 @@ export function MobileBottomNav({
           <button
             key={item.id}
             onClick={() => onItemClick(item.id)}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive ? 'text-navy-900' : 'text-gray-400'}`}>
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive ? 'text-[#1e3a5f]' : 'text-gray-400'}`}>
 
             {item.icon}
             <span className="text-[10px] font-medium">{item.label}</span>
           </button>);
 
       })}
+      {onLogout &&
+      <button
+        onClick={onLogout}
+        className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-400 hover:text-red-500 transition-colors">
+
+          <LogOut className="w-6 h-6" />
+          <span className="text-[10px] font-medium">Sign Out</span>
+        </button>
+      }
     </nav>);
 
 }

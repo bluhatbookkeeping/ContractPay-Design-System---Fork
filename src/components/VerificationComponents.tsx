@@ -17,6 +17,12 @@ export function VerificationBadge({
   status,
   expirationDate
 }: VerificationBadgeProps) {
+  // Define Circle before configs so it can be referenced
+  const Circle = ({ className }: {className?: string;}) =>
+  <div
+    className={`w-4 h-4 rounded-full border-2 border-current ${className}`} />;
+
+
   const configs = {
     verified: {
       icon: ShieldCheck,
@@ -43,12 +49,6 @@ export function VerificationBadge({
       border: 'border-gray-200'
     }
   };
-  // Helper component for unverified icon
-  const Circle = ({ className }: {className?: string;}) =>
-  <div
-    className={`w-4 h-4 rounded-full border-2 border-current ${className}`} />;
-
-
   const config = configs[status];
   const Icon = config.icon;
   const labels = {

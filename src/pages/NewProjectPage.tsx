@@ -39,6 +39,7 @@ interface MilestoneItem {
   id: string;
   name: string;
   amount: string;
+  description: string;
 }
 export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
   const [step, setStep] = useState(1);
@@ -64,7 +65,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
   {
     id: '1',
     name: 'Deposit',
-    amount: ''
+    amount: '',
+    description: ''
   }]
   );
   const [selectedClauses, setSelectedClauses] = useState<string[]>(() =>
@@ -85,7 +87,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
         template.milestones.map((m, i) => ({
           id: String(i + 1),
           name: m.name,
-          amount: m.amount
+          amount: m.amount,
+          description: m.description ?? ''
         }))
       );
       const clauseIds = template.clauseIds;
@@ -108,7 +111,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
     {
       id: Math.random().toString(),
       name: '',
-      amount: ''
+      amount: '',
+      description: ''
     }]
     );
   };
@@ -139,16 +143,38 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
     setSelectedClauses(next);
     setSelectedClauseIds(next);
   };
+  const moveMilestone = (id: string, direction: 'up' | 'down') => {
+    const index = milestones.findIndex((m) => m.id === id);
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === milestones.length - 1) return;
+    const newMilestones = [...milestones];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    [newMilestones[index], newMilestones[swapIndex]] = [
+    newMilestones[swapIndex],
+    newMilestones[index]];
+
+    setMilestones(newMilestones);
+  };
   const handleNext = () => {
-    if (step < 3) setStep(step + 1);else
-    {
+    // If template applied on step 1, skip straight to Review
+    if (step === 1 && appliedTemplate) {
+      setStep(4);
+    } else if (step < 4) {
+      setStep(step + 1);
+    } else {
       addToast('success', 'Project created & contract sent to homeowner');
       onNavigate('projects');
     }
   };
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);else
-    onNavigate('projects');
+    // If on Review and template was applied, go back to step 1
+    if (step === 4 && appliedTemplate) {
+      setStep(1);
+    } else if (step > 1) {
+      setStep(step - 1);
+    } else {
+      onNavigate('projects');
+    }
   };
   const totalMilestones = milestones.reduce(
     (sum, m) => sum + (parseFloat(m.amount) || 0),
@@ -167,7 +193,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
       template.milestones.map((m, i) => ({
         id: String(i + 1),
         name: m.name,
-        amount: m.amount
+        amount: m.amount,
+        description: m.description ?? ''
       }))
     );
     const clauseIds = template.clauseIds;
@@ -224,18 +251,20 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
           {/* Progress Steps */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              {['Project Info', 'Milestones', 'Review'].map((label, i) =>
-              <span
-                key={label}
-                className={`text-sm font-medium ${step >= i + 1 ? 'text-navy-900' : 'text-gray-400'}`}>
+              {['Project Info', 'Milestones', 'Terms & Clauses', 'Review'].map(
+                (label, i) =>
+                <span
+                  key={label}
+                  className={`text-xs sm:text-sm font-medium ${step >= i + 1 ? 'text-[#1e3a5f]' : 'text-gray-400'}`}>
 
-                  {label}
-                </span>
+                    {label}
+                  </span>
+
               )}
             </div>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className={`h-full bg-navy-900 transition-all duration-300 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
+                className={`h-full bg-[#1e3a5f] transition-all duration-300 ${step === 1 ? 'w-1/4' : step === 2 ? 'w-2/4' : step === 3 ? 'w-3/4' : 'w-full'}`} />
 
             </div>
           </div>
@@ -244,10 +273,92 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
             {/* Step 1: Project Info */}
             {step === 1 &&
             <div className="p-6 space-y-6 animate-in fade-in">
-                {/* Template Banner / Applied Preview */}
+                <h2 className="text-xl font-bold text-gray-900">
+                  Project Details
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <TextInput
+                  label="Project Address"
+                  placeholder="123 Main St, City, State"
+                  value={formData.address}
+                  onChange={(e) => updateForm('address', e.target.value)} />
+
+                  <SelectInput
+                  label="Project Type"
+                  value={formData.projectType}
+                  onChange={(e) => updateForm('projectType', e.target.value)}
+                  options={[
+                  {
+                    value: 'kitchen',
+                    label: 'Kitchen Remodel'
+                  },
+                  {
+                    value: 'bath',
+                    label: 'Bathroom Remodel'
+                  },
+                  {
+                    value: 'addition',
+                    label: 'Home Addition'
+                  },
+                  {
+                    value: 'deck',
+                    label: 'Deck / Patio'
+                  },
+                  {
+                    value: 'roofing',
+                    label: 'Roofing'
+                  },
+                  {
+                    value: 'other',
+                    label: 'Other'
+                  }]
+                  } />
+
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  <TextInput
+                  label="Homeowner Name"
+                  placeholder="Jane Doe"
+                  value={formData.homeownerName}
+                  onChange={(e) =>
+                  updateForm('homeownerName', e.target.value)
+                  } />
+
+                  <TextInput
+                  label="Email"
+                  type="email"
+                  placeholder="jane@example.com"
+                  value={formData.homeownerEmail}
+                  onChange={(e) =>
+                  updateForm('homeownerEmail', e.target.value)
+                  } />
+
+                  <PhoneInput
+                  label="Phone"
+                  placeholder="(555) 123-4567"
+                  value={formData.homeownerPhone}
+                  onChange={(e) =>
+                  updateForm('homeownerPhone', e.target.value)
+                  } />
+
+                </div>
+
+                {/* Scope of Work — only show when no template applied */}
+                {!appliedTemplate &&
+              <TextareaInput
+                label="Scope of Work"
+                placeholder="Describe the project details, materials, and expectations..."
+                className="min-h-[150px]"
+                value={formData.scope}
+                onChange={(e) => updateForm('scope', e.target.value)} />
+
+              }
+
+                {/* Template Banner — below project details */}
                 {appliedTemplate ?
               <div className="border border-green-200 bg-green-50 rounded-xl overflow-hidden">
-                    {/* Applied header */}
                     <div className="flex items-center justify-between px-5 py-4 bg-green-600">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -278,14 +389,12 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                       </div>
                     </div>
 
-                    {/* Template preview body */}
                     <div className="divide-y divide-green-100">
-                      {/* Description */}
                       <div className="px-5 py-3">
                         <p className="text-sm text-gray-600">
                           {appliedTemplate.description}
                         </p>
-                        <div className="flex gap-3 mt-2">
+                        <div className="flex flex-wrap gap-2 mt-2">
                           {appliedTemplate.tags.map((tag) =>
                       <span
                         key={tag}
@@ -376,7 +485,7 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                                       {m.name}
                                     </span>
                                   </div>
-                                  <span className="text-sm font-mono font-bold text-navy-900">
+                                  <span className="text-sm font-mono font-bold text-[#1e3a5f]">
                                     ${Number(m.amount).toLocaleString()}
                                   </span>
                                 </div>
@@ -444,7 +553,7 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                     }
                       </div>
                     </div>
-                  </div> /* No template applied — show Browse banner */ :
+                  </div> :
 
               <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a8e] rounded-xl p-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -462,139 +571,14 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                     </div>
                     <button
                   onClick={() => setShowTemplatePicker(true)}
-                  className="bg-white text-navy-900 font-semibold text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap">
+                  className="bg-white text-[#1e3a5f] font-semibold text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap">
 
                       Browse Templates
                     </button>
                   </div>
               }
 
-                <h2 className="text-xl font-bold text-gray-900">
-                  Project Details
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <TextInput
-                  label="Project Address"
-                  placeholder="123 Main St, City, State"
-                  value={formData.address}
-                  onChange={(e) => updateForm('address', e.target.value)} />
-
-                  <SelectInput
-                  label="Project Type"
-                  value={formData.projectType}
-                  onChange={(e) => updateForm('projectType', e.target.value)}
-                  options={[
-                  {
-                    value: 'kitchen',
-                    label: 'Kitchen Remodel'
-                  },
-                  {
-                    value: 'bath',
-                    label: 'Bathroom Remodel'
-                  },
-                  {
-                    value: 'addition',
-                    label: 'Home Addition'
-                  },
-                  {
-                    value: 'deck',
-                    label: 'Deck / Patio'
-                  },
-                  {
-                    value: 'roofing',
-                    label: 'Roofing'
-                  },
-                  {
-                    value: 'other',
-                    label: 'Other'
-                  }]
-                  } />
-
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                  <TextInput
-                  label="Homeowner Name"
-                  placeholder="Jane Doe"
-                  value={formData.homeownerName}
-                  onChange={(e) =>
-                  updateForm('homeownerName', e.target.value)
-                  } />
-
-                  <TextInput
-                  label="Email"
-                  type="email"
-                  placeholder="jane@example.com"
-                  value={formData.homeownerEmail}
-                  onChange={(e) =>
-                  updateForm('homeownerEmail', e.target.value)
-                  } />
-
-                  <PhoneInput
-                  label="Phone"
-                  placeholder="(555) 123-4567"
-                  value={formData.homeownerPhone}
-                  onChange={(e) =>
-                  updateForm('homeownerPhone', e.target.value)
-                  } />
-
-                </div>
-
-                <TextareaInput
-                label="Scope of Work"
-                placeholder="Describe the project details, materials, and expectations..."
-                className="min-h-[150px]"
-                value={formData.scope}
-                onChange={(e) => updateForm('scope', e.target.value)} />
-
-
-                {/* Terms & Clauses Selection */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Terms & Clauses
-                    </label>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                      {selectedClauses.length} of {allClauses.length} selected
-                    </span>
-                  </div>
-                  <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-72 overflow-y-auto">
-                    {allClauses.map((clause) =>
-                  <label
-                    key={clause.id}
-                    className="flex items-start gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-
-                        <input
-                      type="checkbox"
-                      checked={selectedClauses.includes(clause.id)}
-                      onChange={(e) =>
-                      toggleClause(clause.id, e.target.checked)
-                      }
-                      className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-navy-900" />
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900">
-                            {clause.name}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-                            {clause.content.substring(0, 90)}…
-                          </p>
-                        </div>
-                        {clause.isDefault &&
-                    <span className="text-[10px] bg-navy-50 text-navy-700 font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                            Default
-                          </span>
-                    }
-                      </label>
-                  )}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Selected clauses will appear in the Terms & Conditions
-                    section of the homeowner contract.
-                  </p>
-                </div>
-
+                {/* Dates & Contract Value — always at bottom */}
                 <div className="grid md:grid-cols-3 gap-6">
                   <TextInput
                   label="Start Date"
@@ -648,43 +632,88 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                   </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {milestones.map((milestone, index) =>
-                <div key={milestone.id} className="flex gap-4 items-start">
-                      <div className="pt-3 text-sm font-bold text-gray-400 w-6 text-center">
-                        {index + 1}
+                <div
+                  key={milestone.id}
+                  className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+
+                      {/* Row 1: reorder + number + name + amount + delete */}
+                      <div className="flex gap-3 items-start">
+                        {/* Reorder buttons + number */}
+                        <div className="flex flex-col items-center gap-0.5 pt-1 flex-shrink-0">
+                          <button
+                        onClick={() => moveMilestone(milestone.id, 'up')}
+                        disabled={index === 0}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        title="Move up">
+
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <span className="text-xs font-bold text-gray-400 leading-none">
+                            {index + 1}
+                          </span>
+                          <button
+                        onClick={() => moveMilestone(milestone.id, 'down')}
+                        disabled={index === milestones.length - 1}
+                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        title="Move down">
+
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Name + Amount */}
+                        <div className="flex-1 grid md:grid-cols-2 gap-3">
+                          <TextInput
+                        placeholder="Milestone Name (e.g. Rough Plumbing)"
+                        value={milestone.name}
+                        onChange={(e) =>
+                        updateMilestone(
+                          milestone.id,
+                          'name',
+                          e.target.value
+                        )
+                        } />
+
+                          <CurrencyInput
+                        placeholder="Amount"
+                        value={milestone.amount}
+                        onChange={(e) =>
+                        updateMilestone(
+                          milestone.id,
+                          'amount',
+                          e.target.value
+                        )
+                        } />
+
+                        </div>
+
+                        {/* Delete */}
+                        <button
+                      onClick={() => removeMilestone(milestone.id)}
+                      className="mt-1 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                      disabled={milestones.length === 1}>
+
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="flex-1 grid md:grid-cols-2 gap-4">
-                        <TextInput
-                      placeholder="Milestone Name (e.g. Rough Plumbing)"
-                      value={milestone.name}
+
+                      {/* Row 2: Description */}
+                      <div className="pl-8">
+                        <TextareaInput
+                      placeholder="Describe what's included in this milestone (e.g. Full demo of existing cabinets, countertops, flooring. Haul-away included.)"
+                      value={milestone.description}
                       onChange={(e) =>
                       updateMilestone(
                         milestone.id,
-                        'name',
+                        'description',
                         e.target.value
                       )
-                      } />
-
-                        <CurrencyInput
-                      placeholder="Amount"
-                      value={milestone.amount}
-                      onChange={(e) =>
-                      updateMilestone(
-                        milestone.id,
-                        'amount',
-                        e.target.value
-                      )
-                      } />
+                      }
+                      rows={2} />
 
                       </div>
-                      <button
-                    onClick={() => removeMilestone(milestone.id)}
-                    className="mt-2 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    disabled={milestones.length === 1}>
-
-                        <Trash2 className="w-5 h-5" />
-                      </button>
                     </div>
                 )}
                 </div>
@@ -699,8 +728,75 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
               </div>
             }
 
-            {/* Step 3: Review */}
+            {/* Step 3: Terms & Clauses */}
             {step === 3 &&
+            <div className="p-6 space-y-6 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Terms & Clauses
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Select the clauses to include in this contract.
+                    </p>
+                  </div>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
+                    {selectedClauses.length} of {allClauses.length} selected
+                  </span>
+                </div>
+
+                {allClauses.length === 0 ?
+              <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
+                    <Shield className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500">
+                      No clauses created yet
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Add clauses in Contract Templates to use them here.
+                    </p>
+                  </div> :
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+                    {allClauses.map((clause) =>
+                <label
+                  key={clause.id}
+                  className="flex items-start gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors">
+
+                        <input
+                    type="checkbox"
+                    checked={selectedClauses.includes(clause.id)}
+                    onChange={(e) =>
+                    toggleClause(clause.id, e.target.checked)
+                    }
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-[#1e3a5f]" />
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900">
+                            {clause.name}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                            {clause.content.substring(0, 120)}…
+                          </p>
+                        </div>
+                        {clause.isDefault &&
+                  <span className="text-[10px] bg-[#1e3a5f]/10 text-[#1e3a5f] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                            Default
+                          </span>
+                  }
+                      </label>
+                )}
+                  </div>
+              }
+
+                <p className="text-xs text-gray-400">
+                  Selected clauses will appear in the Terms & Conditions section
+                  of the homeowner contract.
+                </p>
+              </div>
+            }
+
+            {/* Step 4: Review */}
+            {step === 4 &&
             <div className="p-6 space-y-8 animate-in fade-in">
                 <div className="text-center">
                   <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -795,8 +891,12 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                 {step === 1 ? 'Cancel' : 'Back'}
               </SecondaryButton>
               <PrimaryButton onClick={handleNext}>
-                {step === 3 ? 'Create & Send Contract' : 'Next Step'}
-                {step < 3 && <ChevronRight className="w-4 h-4 ml-2" />}
+                {step === 4 ?
+                'Create & Send Contract' :
+                step === 1 && appliedTemplate ?
+                'Review Contract' :
+                'Next Step'}
+                {!(step === 4) && <ChevronRight className="w-4 h-4 ml-2" />}
               </PrimaryButton>
             </div>
           </div>
