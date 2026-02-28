@@ -316,6 +316,117 @@ export const projects: Project[] = [
   }],
 
   escrow: { total: 62000, available: 0, holdback: 0, disputed: 0 }
+},
+{
+  id: 'p5',
+  address: '2100 Sunset Blvd',
+  homeownerName: 'Karen & James Park',
+  homeownerEmail: 'karen.park@example.com',
+  contractorName: 'ABC Construction',
+  status: 'active',
+  contractAmount: 210000,
+  progress: 33,
+  startDate: 'Nov 01, 2024',
+  estimatedCompletion: 'Jun 30, 2025',
+  milestones: [
+  {
+    id: 'p5m1',
+    name: 'Permits & Planning',
+    amount: 5000,
+    status: 'completed',
+    description:
+    'All city permits pulled and architectural plans finalized.'
+  },
+  {
+    id: 'p5m2',
+    name: 'Demolition',
+    amount: 12000,
+    status: 'completed',
+    description:
+    'Full interior demo of kitchen, two bathrooms, and living areas.'
+  },
+  {
+    id: 'p5m3',
+    name: 'Structural Work',
+    amount: 25000,
+    status: 'completed',
+    description:
+    'Load-bearing wall removal with steel beam install. New header for expanded kitchen opening.'
+  },
+  {
+    id: 'p5m4',
+    name: 'HVAC Rough-In',
+    amount: 18000,
+    status: 'completed',
+    description:
+    'New ductwork layout, mini-split installation, and zone controls.'
+  },
+  {
+    id: 'p5m5',
+    name: 'Plumbing Rough',
+    amount: 16000,
+    status: 'current',
+    description:
+    'Relocate all supply and drain lines for new kitchen and bath layouts. Gas line for range.'
+  },
+  {
+    id: 'p5m6',
+    name: 'Electrical Rough',
+    amount: 14000,
+    status: 'upcoming',
+    description:
+    'New 200-amp panel, circuits for kitchen appliances, bathroom fans, and whole-home lighting plan.'
+  },
+  {
+    id: 'p5m7',
+    name: 'Insulation & Drywall',
+    amount: 20000,
+    status: 'upcoming',
+    description:
+    'Spray foam insulation in exterior walls. Hang, tape, and finish all drywall.'
+  },
+  {
+    id: 'p5m8',
+    name: 'Flooring',
+    amount: 22000,
+    status: 'upcoming',
+    description:
+    'Engineered hardwood throughout main level. Tile in bathrooms and laundry.'
+  },
+  {
+    id: 'p5m9',
+    name: 'Cabinets & Counters',
+    amount: 30000,
+    status: 'upcoming',
+    description:
+    'Custom kitchen cabinets, bathroom vanities, and quartz countertops throughout.'
+  },
+  {
+    id: 'p5m10',
+    name: 'Painting',
+    amount: 12000,
+    status: 'upcoming',
+    description:
+    'Interior paint — walls, ceilings, trim, and doors. Two coats throughout.'
+  },
+  {
+    id: 'p5m11',
+    name: 'Fixtures & Trim',
+    amount: 20000,
+    status: 'upcoming',
+    description:
+    'All light fixtures, plumbing fixtures, hardware, baseboards, and crown molding.'
+  },
+  {
+    id: 'p5m12',
+    name: 'Final Inspection & Punch',
+    amount: 16000,
+    status: 'upcoming',
+    description:
+    'City final inspection, punch-list walkthrough, and project closeout.'
+  }],
+
+  escrow: { total: 210000, available: 134000, holdback: 21000, disputed: 0 }
 }];
 
 
