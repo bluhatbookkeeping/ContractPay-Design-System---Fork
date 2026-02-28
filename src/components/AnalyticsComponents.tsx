@@ -29,7 +29,7 @@ export function MetricCard({
         {label}
       </p>
 
-      <div className="flex items-end gap-3 mb-1">
+      <div className="flex items-end gap-3 mb-1 flex-wrap overflow-hidden">
         <h3
           className={`text-3xl font-bold font-mono ${format === 'currency' ? 'text-green-700' : 'text-gray-900'}`}>
 
@@ -38,7 +38,7 @@ export function MetricCard({
 
         {trend &&
         <div
-          className={`flex items-center gap-0.5 text-sm font-bold mb-1.5 ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+          className={`flex items-center gap-0.5 text-sm font-bold mb-1.5 flex-shrink-0 ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
 
             {trend.direction === 'up' ?
           <TrendingUp className="w-4 h-4" /> :

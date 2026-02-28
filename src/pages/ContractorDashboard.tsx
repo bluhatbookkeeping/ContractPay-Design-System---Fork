@@ -1,5 +1,12 @@
 import React, { Component } from 'react';
-import { Clock, MessageSquare, ChevronRight } from 'lucide-react';
+import {
+  Clock,
+  MessageSquare,
+  ChevronRight,
+  AlertTriangle,
+  DollarSign,
+  FileText } from
+'lucide-react';
 import { MetricCard, AgingChart } from '../components/AnalyticsComponents';
 import { ProjectCard } from '../components/Cards';
 import { Timeline } from '../components/DataDisplay';
@@ -8,7 +15,14 @@ interface ContractorDashboardProps {
   onNavigate: (page: string, id?: string) => void;
 }
 export function ContractorDashboard({ onNavigate }: ContractorDashboardProps) {
-  const pendingDraw = draws.find((d) => d.status === 'pending');
+  // All pending draws across projects
+  const pendingDraws = draws.filter((d) => d.status === 'pending');
+  const disputedDraws = draws.filter((d) => d.status === 'disputed' as any);
+  const contractsAwaitingSignature = projects.filter((p) => p.status === 'sent');
+  const totalActionItems =
+  pendingDraws.length +
+  disputedDraws.length +
+  contractsAwaitingSignature.length;
   // Only show active projects on the dashboard (not completed or sent)
   const activeProjects = projects.filter((p) => p.status === 'active');
   const pendingProjects = projects.filter(
@@ -50,9 +64,9 @@ export function ContractorDashboard({ onNavigate }: ContractorDashboardProps) {
 
         <MetricCard
           label="Pending Draws"
-          value={25000}
+          value={pendingDraws.reduce((sum, d) => sum + d.amount, 0)}
           format="currency"
-          subtitle="1 request waiting" />
+          subtitle={`${pendingDraws.length} request${pendingDraws.length !== 1 ? 's' : ''} waiting`} />
 
         <MetricCard
           label="Avg Rating"
@@ -151,71 +165,148 @@ export function ContractorDashboard({ onNavigate }: ContractorDashboardProps) {
           }
 
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Action Items
-            </h2>
-            {pendingDraw ?
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
-                      Pending Draw
-                    </p>
-                    <p className="font-bold text-gray-900">
-                      {pendingDraw.milestoneName}
-                    </p>
-                    <p className="text-2xl font-bold font-mono text-[#1e3a5f] mt-1">
-                      ${pendingDraw.amount.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                      Pending
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {pendingDraw.dateSubmitted}
-                    </p>
-                  </div>
-                </div>
-
-                {pendingDraw.hoursRemaining &&
-              <div className="flex items-center gap-2 text-sm text-amber-600 font-medium bg-amber-50 rounded-lg px-3 py-2">
-                    <Clock className="w-4 h-4 flex-shrink-0" />
-                    <span>
-                      Auto-releases in {pendingDraw.hoursRemaining}h if
-                      homeowner takes no action
-                    </span>
-                  </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Action Items</h2>
+              {totalActionItems > 0 &&
+              <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
+                  {totalActionItems}
+                </span>
               }
+            </div>
 
-                {pendingDraw.photos.length > 0 &&
-              <div className="flex gap-2">
-                    {pendingDraw.photos.slice(0, 3).map((photo, i) =>
-                <div
-                  key={i}
-                  className="w-14 h-14 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+            {totalActionItems > 0 ?
+            <div className="space-y-3">
+                {/* Contracts awaiting signature */}
+                {contractsAwaitingSignature.map((project) =>
+              <div
+                key={`sig-${project.id}`}
+                className="bg-white rounded-xl border border-blue-200 p-4 space-y-3">
 
-                        <img
-                    src={photo}
-                    alt={`Evidence ${i + 1}`}
-                    className="w-full h-full object-cover" />
-
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+                          <FileText className="w-4.5 h-4.5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-0.5">
+                            Awaiting Signature
+                          </p>
+                          <p className="font-bold text-gray-900 text-sm">
+                            {project.address}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {project.homeownerName}
+                          </p>
+                        </div>
                       </div>
-                )}
+                      <span className="text-sm font-bold font-mono text-[#1e3a5f]">
+                        ${project.contractAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                  onClick={() => onNavigate('contract', project.id)}
+                  className="w-full text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg py-2 hover:bg-blue-50 transition-colors">
+
+                      View Contract →
+                    </button>
                   </div>
-              }
+              )}
 
-                <button
-                onClick={() => onNavigate('draw-detail', pendingDraw.id)}
-                className="w-full text-sm font-semibold text-[#1e3a5f] border border-[#1e3a5f]/20 rounded-lg py-2.5 hover:bg-[#1e3a5f]/5 transition-colors">
+                {/* Disputed draws */}
+                {disputedDraws.map((draw) => {
+                const project = projects.find((p) => p.id === draw.projectId);
+                return (
+                  <div
+                    key={`disp-${draw.id}`}
+                    className="bg-white rounded-xl border border-red-200 p-4 space-y-3">
 
-                  View Draw Request →
-                </button>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-600 flex-shrink-0">
+                            <AlertTriangle className="w-4.5 h-4.5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-0.5">
+                              Disputed
+                            </p>
+                            <p className="font-bold text-gray-900 text-sm">
+                              {draw.milestoneName}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {project?.address}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-sm font-bold font-mono text-red-600">
+                          ${draw.amount.toLocaleString()}
+                        </span>
+                      </div>
+                      <button
+                      onClick={() => onNavigate('dispute', draw.id)}
+                      className="w-full text-sm font-semibold text-red-600 border border-red-200 rounded-lg py-2 hover:bg-red-50 transition-colors">
+
+                        Resolve Dispute →
+                      </button>
+                    </div>);
+
+              })}
+
+                {/* Pending draws */}
+                {pendingDraws.map((draw) => {
+                const project = projects.find((p) => p.id === draw.projectId);
+                return (
+                  <div
+                    key={`draw-${draw.id}`}
+                    className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 flex-shrink-0">
+                            <DollarSign className="w-4.5 h-4.5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">
+                              Pending Draw
+                            </p>
+                            <p className="font-bold text-gray-900 text-sm">
+                              {draw.milestoneName}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {project?.address}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-bold font-mono text-[#1e3a5f]">
+                            ${draw.amount.toLocaleString()}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {draw.dateSubmitted}
+                          </p>
+                        </div>
+                      </div>
+
+                      {draw.hoursRemaining &&
+                    <div className="flex items-center gap-2 text-xs text-amber-600 font-medium bg-amber-50 rounded-lg px-3 py-2">
+                          <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>Auto-releases in {draw.hoursRemaining}h</span>
+                        </div>
+                    }
+
+                      <button
+                      onClick={() => onNavigate('draw-detail', draw.id)}
+                      className="w-full text-sm font-semibold text-[#1e3a5f] border border-[#1e3a5f]/20 rounded-lg py-2 hover:bg-[#1e3a5f]/5 transition-colors">
+
+                        View Draw Request →
+                      </button>
+                    </div>);
+
+              })}
               </div> :
 
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
                 <p className="text-sm text-gray-400">
-                  No pending draw requests
+                  No action items right now
                 </p>
               </div>
             }
