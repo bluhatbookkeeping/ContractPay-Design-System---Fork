@@ -12,7 +12,8 @@ import {
   ToggleRight,
   Search,
   ChevronDown,
-  ChevronUp } from
+  ChevronUp,
+  DollarSign } from
 'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
@@ -39,7 +40,9 @@ interface ContractTemplatesPageProps {
 export function ContractTemplatesPage({
   onNavigate
 }: ContractTemplatesPageProps) {
-  const [activeTab, setActiveTab] = useState<'full' | 'clauses'>('full');
+  const [activeTab, setActiveTab] = useState<
+    'details' | 'milestones' | 'clauses'>(
+    'details');
   const [clauses, setClauses] = useState<Clause[]>(() => getAllClauses());
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -206,7 +209,7 @@ export function ContractTemplatesPage({
     resetTemplateDraft();
     setEditingTemplateId(null);
     setIsCreatingTemplate(true);
-    setActiveTab('full');
+    setActiveTab('details');
   };
   const handleUpdateMilestoneDraft = (
   index: number,
@@ -412,135 +415,35 @@ export function ContractTemplatesPage({
               rows={6} />
 
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Payment Milestones
-              </label>
-              <div className="space-y-3">
-                {templateDraft.milestones.map((m, i) =>
-                <div
-                  key={i}
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <p className="text-sm text-gray-500">
+                Add payment milestones in the{' '}
+                <button
+                  onClick={() => setActiveTab('milestones')}
+                  className="text-navy-900 font-semibold underline underline-offset-2">
 
-                    <div className="flex gap-3 items-center">
-                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-                        <button
-                        type="button"
-                        onClick={() => handleMoveMilestoneDraft(i, 'up')}
-                        disabled={i === 0}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+                  Payment Milestones
+                </button>{' '}
+                tab
+              </p>
+              <div className="flex gap-3">
+                <PrimaryButton
+                  size="sm"
+                  onClick={handleCreateTemplate}
+                  disabled={!templateDraft.name.trim()}>
 
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-bold text-gray-400 leading-none">
-                          {i + 1}
-                        </span>
-                        <button
-                        type="button"
-                        onClick={() => handleMoveMilestoneDraft(i, 'down')}
-                        disabled={i === templateDraft.milestones.length - 1}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+                  <Check className="w-4 h-4 mr-1.5" /> Save Template
+                </PrimaryButton>
+                <SecondaryButton
+                  size="sm"
+                  onClick={() => {
+                    setIsCreatingTemplate(false);
+                    resetTemplateDraft();
+                  }}>
 
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <input
-                        type="text"
-                        placeholder="Milestone name"
-                        value={m.name}
-                        onChange={(e) =>
-                        handleUpdateMilestoneDraft(
-                          i,
-                          'name',
-                          e.target.value
-                        )
-                        }
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
-                        style={{
-                          overflowX: 'hidden'
-                        }} />
-
-                      </div>
-                      <div className="w-32">
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">
-                            $
-                          </span>
-                          <input
-                          type="text"
-                          placeholder="0"
-                          value={m.amount}
-                          onChange={(e) =>
-                          handleUpdateMilestoneDraft(
-                            i,
-                            'amount',
-                            e.target.value
-                          )
-                          }
-                          className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-mono text-right bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
-                          style={{
-                            overflowX: 'hidden'
-                          }} />
-
-                        </div>
-                      </div>
-                      <button
-                      onClick={() => handleRemoveMilestoneDraft(i)}
-                      className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="pl-8">
-                      <textarea
-                      placeholder="What's included in this milestone? (shown to homeowner)"
-                      value={m.description ?? ''}
-                      onChange={(e) =>
-                      handleUpdateMilestoneDraft(
-                        i,
-                        'description',
-                        e.target.value
-                      )
-                      }
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900 resize-none text-gray-600"
-                      style={{
-                        overflowWrap: 'break-word',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap',
-                        overflowX: 'hidden'
-                      }} />
-
-                    </div>
-                  </div>
-                )}
+                  Cancel
+                </SecondaryButton>
               </div>
-              <button
-                onClick={handleAddMilestoneDraft}
-                className="mt-3 flex items-center gap-2 text-sm text-navy-900 font-medium hover:text-navy-700 transition-colors">
-
-                <Plus className="w-4 h-4" /> Add Milestone
-              </button>
-            </div>
-
-            <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <PrimaryButton
-                size="sm"
-                onClick={handleCreateTemplate}
-                disabled={!templateDraft.name.trim()}>
-
-                <Check className="w-4 h-4 mr-1.5" /> Save Template
-              </PrimaryButton>
-              <SecondaryButton
-                size="sm"
-                onClick={() => {
-                  setIsCreatingTemplate(false);
-                  resetTemplateDraft();
-                }}>
-
-                Cancel
-              </SecondaryButton>
             </div>
           </div>
         </div>);
@@ -618,131 +521,31 @@ export function ContractTemplatesPage({
               rows={6} />
 
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Payment Milestones
-              </label>
-              <div className="space-y-3">
-                {templateDraft.milestones.map((m, i) =>
-                <div
-                  key={i}
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <p className="text-sm text-gray-500">
+                Edit milestones in the{' '}
+                <button
+                  onClick={() => setActiveTab('milestones')}
+                  className="text-navy-900 font-semibold underline underline-offset-2">
 
-                    <div className="flex gap-3 items-center">
-                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-                        <button
-                        type="button"
-                        onClick={() => handleMoveMilestoneDraft(i, 'up')}
-                        disabled={i === 0}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+                  Payment Milestones
+                </button>{' '}
+                tab
+              </p>
+              <div className="flex gap-3">
+                <PrimaryButton
+                  size="sm"
+                  onClick={() => handleSaveTemplate(editingTemplateId)}>
 
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-bold text-gray-400 leading-none">
-                          {i + 1}
-                        </span>
-                        <button
-                        type="button"
-                        onClick={() => handleMoveMilestoneDraft(i, 'down')}
-                        disabled={i === templateDraft.milestones.length - 1}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+                  <Check className="w-4 h-4 mr-1.5" /> Save Template
+                </PrimaryButton>
+                <SecondaryButton
+                  size="sm"
+                  onClick={() => setEditingTemplateId(null)}>
 
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <input
-                        type="text"
-                        placeholder="Milestone name"
-                        value={m.name}
-                        onChange={(e) =>
-                        handleUpdateMilestoneDraft(
-                          i,
-                          'name',
-                          e.target.value
-                        )
-                        }
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
-                        style={{
-                          overflowX: 'hidden'
-                        }} />
-
-                      </div>
-                      <div className="w-32">
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">
-                            $
-                          </span>
-                          <input
-                          type="text"
-                          placeholder="0"
-                          value={m.amount}
-                          onChange={(e) =>
-                          handleUpdateMilestoneDraft(
-                            i,
-                            'amount',
-                            e.target.value
-                          )
-                          }
-                          className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-mono text-right bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
-                          style={{
-                            overflowX: 'hidden'
-                          }} />
-
-                        </div>
-                      </div>
-                      <button
-                      onClick={() => handleRemoveMilestoneDraft(i)}
-                      className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="pl-8">
-                      <textarea
-                      placeholder="What's included in this milestone?"
-                      value={m.description ?? ''}
-                      onChange={(e) =>
-                      handleUpdateMilestoneDraft(
-                        i,
-                        'description',
-                        e.target.value
-                      )
-                      }
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900 resize-none text-gray-600"
-                      style={{
-                        overflowWrap: 'break-word',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap',
-                        overflowX: 'hidden'
-                      }} />
-
-                    </div>
-                  </div>
-                )}
+                  Cancel
+                </SecondaryButton>
               </div>
-              <button
-                onClick={handleAddMilestoneDraft}
-                className="mt-3 flex items-center gap-2 text-sm text-navy-900 font-medium hover:text-navy-700 transition-colors">
-
-                <Plus className="w-4 h-4" /> Add Milestone
-              </button>
-            </div>
-
-            <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <PrimaryButton
-                size="sm"
-                onClick={() => handleSaveTemplate(editingTemplateId)}>
-
-                <Check className="w-4 h-4 mr-1.5" /> Save Template
-              </PrimaryButton>
-              <SecondaryButton
-                size="sm"
-                onClick={() => setEditingTemplateId(null)}>
-
-                Cancel
-              </SecondaryButton>
             </div>
           </div>
         </div>);
@@ -816,6 +619,183 @@ export function ContractTemplatesPage({
             Create New Template
           </span>
         </button>
+      </div>);
+
+  };
+  const renderMilestones = () => {
+    // Show milestone editor when creating or editing a template
+    if (isCreatingTemplate || editingTemplateId) {
+      const templateName = editingTemplateId ?
+      localTemplates.find((t) => t.id === editingTemplateId)?.name ||
+      'Template' :
+      templateDraft.name || 'New Template';
+      return (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-700">
+                <DollarSign className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-semibold text-gray-900">
+                  Payment Milestones
+                </span>
+                <span className="text-xs text-gray-400 ml-2">
+                  for {templateName}
+                </span>
+              </div>
+            </div>
+            {templateDraft.milestones.length > 0 &&
+            <span className="text-sm font-mono font-bold text-navy-900">
+                Total: $
+                {templateDraft.milestones.
+              reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0).
+              toLocaleString()}
+              </span>
+            }
+          </div>
+
+          <div className="p-6">
+            <div className="space-y-3">
+              {templateDraft.milestones.map((m, i) =>
+              <div
+                key={i}
+                className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+
+                  <div className="flex gap-3 items-center">
+                    <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                      <button
+                      type="button"
+                      onClick={() => handleMoveMilestoneDraft(i, 'up')}
+                      disabled={i === 0}
+                      className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-bold text-gray-400 leading-none">
+                        {i + 1}
+                      </span>
+                      <button
+                      type="button"
+                      onClick={() => handleMoveMilestoneDraft(i, 'down')}
+                      disabled={i === templateDraft.milestones.length - 1}
+                      className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
+
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex-1">
+                      <input
+                      type="text"
+                      placeholder="Milestone name"
+                      value={m.name}
+                      onChange={(e) =>
+                      handleUpdateMilestoneDraft(i, 'name', e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
+                      style={{
+                        overflowX: 'hidden'
+                      }} />
+
+                    </div>
+                    <div className="w-32">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-mono">
+                          $
+                        </span>
+                        <input
+                        type="text"
+                        placeholder="0"
+                        value={m.amount}
+                        onChange={(e) =>
+                        handleUpdateMilestoneDraft(
+                          i,
+                          'amount',
+                          e.target.value
+                        )
+                        }
+                        className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-mono text-right bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900"
+                        style={{
+                          overflowX: 'hidden'
+                        }} />
+
+                      </div>
+                    </div>
+                    <button
+                    onClick={() => handleRemoveMilestoneDraft(i)}
+                    className="p-1.5 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="pl-8">
+                    <textarea
+                    placeholder="What's included in this milestone? (shown to homeowner)"
+                    value={m.description ?? ''}
+                    onChange={(e) =>
+                    handleUpdateMilestoneDraft(
+                      i,
+                      'description',
+                      e.target.value
+                    )
+                    }
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900 resize-none text-gray-600"
+                    style={{
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                      overflowX: 'hidden'
+                    }} />
+
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleAddMilestoneDraft}
+              className="mt-4 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-navy-300 hover:text-navy-900 hover:bg-navy-50 transition-all flex items-center justify-center gap-2">
+
+              <Plus className="w-4 h-4" /> Add Milestone
+            </button>
+
+            {templateDraft.milestones.length === 0 &&
+            <div className="text-center py-8 text-gray-400">
+                <DollarSign className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">No milestones yet</p>
+                <p className="text-xs mt-1">
+                  Add payment milestones for this template
+                </p>
+              </div>
+            }
+          </div>
+        </div>);
+
+    }
+    // No template being edited — show prompt to select one
+    return (
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+          <DollarSign className="w-7 h-7 text-gray-400" />
+        </div>
+        <h3 className="font-bold text-gray-900 mb-2">
+          Select a Template to Edit Milestones
+        </h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          Go to the{' '}
+          <button
+            onClick={() => setActiveTab('details')}
+            className="text-navy-900 font-semibold underline underline-offset-2">
+
+            Template Details
+          </button>{' '}
+          tab and click Edit on a template, then come back here to manage its
+          payment milestones.
+        </p>
+        <SecondaryButton size="sm" onClick={() => setActiveTab('details')}>
+          Go to Template Details
+        </SecondaryButton>
       </div>);
 
   };
@@ -1146,19 +1126,33 @@ export function ContractTemplatesPage({
 
       <div className="p-4 lg:p-8 max-w-6xl mx-auto w-full">
         <div className="flex gap-1 bg-gray-200/50 p-1 rounded-xl w-fit mb-8">
-          {(['full', 'clauses'] as const).map((tab) =>
+          {[
+          {
+            id: 'details' as const,
+            label: 'Template Details'
+          },
+          {
+            id: 'milestones' as const,
+            label: 'Payment Milestones'
+          },
+          {
+            id: 'clauses' as const,
+            label: 'Scope Clauses'
+          }].
+          map((tab) =>
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
 
-              {tab === 'full' ? 'Full Templates' : 'Scope Clauses'}
+              {tab.label}
             </button>
           )}
         </div>
 
         <div className="animate-in fade-in duration-300">
-          {activeTab === 'full' && renderFullTemplates()}
+          {activeTab === 'details' && renderFullTemplates()}
+          {activeTab === 'milestones' && renderMilestones()}
           {activeTab === 'clauses' && renderClauses()}
         </div>
       </div>
