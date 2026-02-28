@@ -10,7 +10,11 @@ import {
   Shield,
   ChevronDown,
   ChevronUp,
-  X } from
+  X,
+  Send,
+  ArrowLeft,
+  MessageCircle,
+  MapPin } from
 'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
@@ -19,7 +23,8 @@ import {
   SelectInput,
   CurrencyInput,
   TextareaInput,
-  PhoneInput } from
+  PhoneInput,
+  CheckboxInput } from
 '../components/FormElements';
 import { BottomSheet } from '../components/Modals';
 import {
@@ -40,6 +45,7 @@ interface MilestoneItem {
   name: string;
   amount: string;
   description: string;
+  dueDate?: string;
 }
 export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
   const [step, setStep] = useState(1);
@@ -66,13 +72,34 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
     id: '1',
     name: 'Deposit',
     amount: '',
-    description: ''
+    description: '',
+    dueDate: ''
   }]
   );
   const [selectedClauses, setSelectedClauses] = useState<string[]>(() =>
   getSelectedClauseIds()
   );
   const [allClauses] = useState<Clause[]>(() => getAllClauses());
+  // New state for Step 2 redesign
+  const [materialAdvanceEnabled, setMaterialAdvanceEnabled] = useState(false);
+  const [materialAdvancePercent, setMaterialAdvancePercent] = useState('10');
+  const [holdbackPercent, setHoldbackPercent] = useState('5');
+  const [isDivided, setIsDivided] = useState(false);
+  const [preDivideAmounts, setPreDivideAmounts] = useState<string[]>([]);
+  // Derived calculations
+  const contractValue = parseFloat(formData.contractValue) || 0;
+  const materialAdvanceAmount = materialAdvanceEnabled ?
+  parseFloat(materialAdvancePercent || '0') / 100 * contractValue :
+  0;
+  const holdbackAmount =
+  parseFloat(holdbackPercent || '0') / 100 * contractValue;
+  const rawMilestonesTotal = milestones.reduce(
+    (sum, m) => sum + (parseFloat(m.amount) || 0),
+    0
+  );
+  const milestonesTotal =
+  rawMilestonesTotal + materialAdvanceAmount + holdbackAmount;
+  const difference = contractValue - milestonesTotal;
   // Auto-apply template if one was selected from the Templates page
   useEffect(() => {
     const template = getSelectedTemplate();
@@ -88,7 +115,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
           id: String(i + 1),
           name: m.name,
           amount: m.amount,
-          description: m.description ?? ''
+          description: m.description ?? '',
+          dueDate: ''
         }))
       );
       const clauseIds = template.clauseIds;
@@ -112,13 +140,17 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
       id: Math.random().toString(),
       name: '',
       amount: '',
-      description: ''
+      description: '',
+      dueDate: ''
     }]
     );
+    setIsDivided(false);
   };
   const removeMilestone = (id: string) => {
-    if (milestones.length > 1)
-    setMilestones(milestones.filter((m) => m.id !== id));
+    if (milestones.length > 1) {
+      setMilestones(milestones.filter((m) => m.id !== id));
+      setIsDivided(false);
+    }
   };
   const updateMilestone = (
   id: string,
@@ -135,6 +167,9 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
       m
       )
     );
+    if (key === 'amount') {
+      setIsDivided(false);
+    }
   };
   const toggleClause = (id: string, checked: boolean) => {
     const next = checked ?
@@ -154,6 +189,34 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
     newMilestones[index]];
 
     setMilestones(newMilestones);
+  };
+  const handleDivideEvenly = () => {
+    if (isDivided) {
+      // Undivide
+      setMilestones(
+        milestones.map((m, i) => ({
+          ...m,
+          amount: preDivideAmounts[i] || ''
+        }))
+      );
+      setIsDivided(false);
+    } else {
+      // Divide
+      setPreDivideAmounts(milestones.map((m) => m.amount));
+      const remainingForMilestones =
+      contractValue - materialAdvanceAmount - holdbackAmount;
+      const evenAmount =
+      remainingForMilestones > 0 ?
+      (remainingForMilestones / milestones.length).toFixed(2) :
+      '0';
+      setMilestones(
+        milestones.map((m) => ({
+          ...m,
+          amount: evenAmount
+        }))
+      );
+      setIsDivided(true);
+    }
   };
   const handleNext = () => {
     // If template applied on step 1, skip straight to Review
@@ -176,12 +239,6 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
       onNavigate('projects');
     }
   };
-  const totalMilestones = milestones.reduce(
-    (sum, m) => sum + (parseFloat(m.amount) || 0),
-    0
-  );
-  const contractValue = parseFloat(formData.contractValue) || 0;
-  const remainingBudget = contractValue - totalMilestones;
   const applyTemplate = (template: (typeof fullTemplates)[0]) => {
     setFormData((prev) => ({
       ...prev,
@@ -194,7 +251,8 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
         id: String(i + 1),
         name: m.name,
         amount: m.amount,
-        description: m.description ?? ''
+        description: m.description ?? '',
+        dueDate: ''
       }))
     );
     const clauseIds = template.clauseIds;
@@ -204,13 +262,42 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
     setShowTemplatePicker(false);
     addToast('success', `"${template.name}" template applied`);
   };
+  // Stepper UI helper
+  const renderStepIcon = (
+  stepNumber: number,
+  icon: React.ReactNode,
+  label: string) =>
+  {
+    const isCompleted =
+    step > stepNumber || step === 1 && appliedTemplate && stepNumber < 4;
+    const isCurrent = step === stepNumber;
+    return (
+      <div className="flex flex-col items-center relative z-10 w-24">
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-[#1e3a5f] text-white' : 'bg-gray-100 text-gray-400'}`}>
+
+          {isCompleted ? <Check className="w-5 h-5" /> : icon}
+        </div>
+        <span
+          className={`text-xs font-medium text-center ${isCurrent ? 'text-gray-900' : 'text-gray-500'}`}>
+
+          {label}
+        </span>
+      </div>);
+
+  };
   return (
     <div className="flex flex-col bg-gray-50 -m-4 lg:-m-8 min-h-full">
-      <HeaderBar
-        title="Create New Project"
-        showBack
-        onBack={() => onNavigate('projects')} />
+      {/* Custom Header matching screenshot */}
+      <div className="bg-white px-6 py-4">
+        <button
+          onClick={() => onNavigate('contracts')}
+          className="flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
 
+          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Contracts
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">New Contract</h1>
+      </div>
 
       {/* Template Picker BottomSheet */}
       <BottomSheet
@@ -246,27 +333,35 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
         </div>
       </BottomSheet>
 
-      <div className="p-4 lg:p-8">
-        <div className="max-w-3xl mx-auto">
-          {/* Progress Steps */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              {['Project Info', 'Milestones', 'Terms & Clauses', 'Review'].map(
-                (label, i) =>
-                <span
-                  key={label}
-                  className={`text-xs sm:text-sm font-medium ${step >= i + 1 ? 'text-[#1e3a5f]' : 'text-gray-400'}`}>
-
-                    {label}
-                  </span>
-
-              )}
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="p-4 lg:p-8 flex-1">
+        <div className="max-w-5xl mx-auto">
+          {/* New Step Navigation */}
+          <div className="mb-10 relative flex justify-between items-start max-w-3xl mx-auto">
+            {/* Connecting lines */}
+            <div className="absolute top-5 left-12 right-12 h-0.5 bg-gray-200 -z-0">
               <div
-                className={`h-full bg-[#1e3a5f] transition-all duration-300 ${step === 1 ? 'w-1/4' : step === 2 ? 'w-2/4' : step === 3 ? 'w-3/4' : 'w-full'}`} />
+                className="h-full bg-green-500 transition-all duration-300"
+                style={{
+                  width:
+                  step === 1 ?
+                  '0%' :
+                  step === 2 ?
+                  '33%' :
+                  step === 3 ?
+                  '66%' :
+                  '100%'
+                }} />
 
             </div>
+
+            {renderStepIcon(
+              1,
+              <Check className="w-5 h-5" />,
+              'Project Details'
+            )}
+            {renderStepIcon(2, <MapPin className="w-5 h-5" />, 'Milestones')}
+            {renderStepIcon(3, <FileText className="w-5 h-5" />, 'Clauses')}
+            {renderStepIcon(4, <Send className="w-5 h-5" />, 'Review & Send')}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -606,125 +701,235 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
               </div>
             }
 
-            {/* Step 2: Milestones */}
+            {/* Step 2: Milestones (Redesigned) */}
             {step === 2 &&
             <div className="p-6 space-y-6 animate-in fade-in">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    Payment Schedule
-                  </h2>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Contract Total</p>
-                    <p className="font-mono font-bold text-lg">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Payment Milestones
+                </h2>
+
+                {/* Summary Bar */}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    Contract Total:{' '}
+                    <span className="font-mono font-bold text-gray-900">
                       ${contractValue.toLocaleString()}
-                    </p>
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Milestones Total:{' '}
+                    <span className="font-mono font-bold text-green-700">
+                      ${milestonesTotal.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Difference:{' '}
+                    {Math.abs(difference) < 0.01 ?
+                  <span className="font-mono font-bold text-green-600">
+                        Balanced
+                      </span> :
+                  difference < 0 ?
+                  <span className="font-mono font-bold text-red-600">
+                        ${Math.abs(difference).toLocaleString()} over
+                      </span> :
+
+                  <span className="font-mono font-bold text-amber-600">
+                        ${difference.toLocaleString()} remaining
+                      </span>
+                  }
                   </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex justify-between items-center">
-                  <span className="text-sm text-blue-800 font-medium">
-                    Remaining to allocate:
-                  </span>
-                  <span
-                  className={`font-mono font-bold ${remainingBudget < 0 ? 'text-red-600' : 'text-blue-800'}`}>
+                {/* Materials Advance */}
+                <div className="border border-gray-200 rounded-xl p-5 bg-white">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        Materials Advance
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Upfront payment for materials (max 5% / $
+                        {(contractValue * 0.05).toLocaleString()} for this
+                        contract size)
+                      </p>
+                    </div>
+                    <CheckboxInput
+                    label=""
+                    checked={materialAdvanceEnabled}
+                    onChange={(e) =>
+                    setMaterialAdvanceEnabled(e.target.checked)
+                    } />
 
-                    ${remainingBudget.toLocaleString()}
-                  </span>
+                  </div>
+
+                  {materialAdvanceEnabled &&
+                <div className="flex items-center gap-3">
+                      <div className="w-24">
+                        <TextInput
+                      type="number"
+                      value={materialAdvancePercent}
+                      onChange={(e) =>
+                      setMaterialAdvancePercent(e.target.value)
+                      }
+                      className="text-center" />
+
+                      </div>
+                      <span className="text-gray-500">
+                        % ={' '}
+                        <span className="font-mono font-bold text-gray-900">
+                          ${materialAdvanceAmount.toLocaleString()}
+                        </span>
+                      </span>
+                    </div>
+                }
                 </div>
 
-                <div className="space-y-3">
-                  {milestones.map((milestone, index) =>
-                <div
-                  key={milestone.id}
-                  className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                {/* Holdback */}
+                <div className="border border-gray-200 rounded-xl p-5 bg-white">
+                  <div className="mb-4">
+                    <h3 className="font-bold text-gray-900">Holdback</h3>
+                    <p className="text-sm text-gray-500">
+                      Percentage held until project completion (1-5%)
+                    </p>
+                  </div>
 
-                      {/* Row 1: reorder + number + name + amount + delete */}
-                      <div className="flex gap-3 items-start">
-                        {/* Reorder buttons + number */}
-                        <div className="flex flex-col items-center gap-0.5 pt-1 flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-24">
+                      <TextInput
+                      type="number"
+                      value={holdbackPercent}
+                      onChange={(e) => setHoldbackPercent(e.target.value)}
+                      className="text-center" />
+
+                    </div>
+                    <span className="text-gray-500">
+                      % ={' '}
+                      <span className="font-mono font-bold text-gray-900">
+                        ${holdbackAmount.toLocaleString()}
+                      </span>{' '}
+                      held until completion
+                    </span>
+                  </div>
+                </div>
+
+                {/* Milestones List */}
+                <div className="pt-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-gray-900">
+                      Milestones ({milestones.length})
+                    </h3>
+                    <div className="flex gap-2">
+                      <button
+                      onClick={handleDivideEvenly}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+
+                        {isDivided ? 'Undivide' : 'Divide Evenly'}
+                      </button>
+                      <button
+                      onClick={addMilestone}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
+
+                        <Plus className="w-4 h-4" /> Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {milestones.map((milestone, index) =>
+                  <div
+                    key={milestone.id}
+                    className="bg-white border border-gray-200 rounded-xl p-4 flex gap-3 items-start">
+
+                        {/* Reorder buttons */}
+                        <div className="flex flex-col items-center gap-1 pt-2 flex-shrink-0">
                           <button
                         onClick={() => moveMilestone(milestone.id, 'up')}
                         disabled={index === 0}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        title="Move up">
+                        className="text-gray-300 hover:text-gray-600 disabled:opacity-30">
 
                             <ChevronUp className="w-4 h-4" />
                           </button>
-                          <span className="text-xs font-bold text-gray-400 leading-none">
-                            {index + 1}
-                          </span>
                           <button
                         onClick={() => moveMilestone(milestone.id, 'down')}
                         disabled={index === milestones.length - 1}
-                        className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        title="Move down">
+                        className="text-gray-300 hover:text-gray-600 disabled:opacity-30">
 
                             <ChevronDown className="w-4 h-4" />
                           </button>
                         </div>
 
-                        {/* Name + Amount */}
-                        <div className="flex-1 grid md:grid-cols-2 gap-3">
-                          <TextInput
-                        placeholder="Milestone Name (e.g. Rough Plumbing)"
-                        value={milestone.name}
-                        onChange={(e) =>
-                        updateMilestone(
-                          milestone.id,
-                          'name',
-                          e.target.value
-                        )
-                        } />
+                        {/* Inputs */}
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <TextInput
+                          placeholder="Milestone Name"
+                          value={milestone.name}
+                          onChange={(e) =>
+                          updateMilestone(
+                            milestone.id,
+                            'name',
+                            e.target.value
+                          )
+                          } />
 
-                          <CurrencyInput
-                        placeholder="Amount"
-                        value={milestone.amount}
+                            <div className="relative">
+                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <span className="text-gray-500 font-mono">
+                                  $
+                                </span>
+                              </div>
+                              <input
+                            type="number"
+                            className="w-full h-[42px] pl-8 pr-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900 font-mono"
+                            placeholder="Amount"
+                            value={milestone.amount}
+                            onChange={(e) =>
+                            updateMilestone(
+                              milestone.id,
+                              'amount',
+                              e.target.value
+                            )
+                            } />
+
+                            </div>
+                            <TextInput
+                          type="date"
+                          value={milestone.dueDate || ''}
+                          onChange={(e) =>
+                          updateMilestone(
+                            milestone.id,
+                            'dueDate',
+                            e.target.value
+                          )
+                          } />
+
+                          </div>
+                          <TextareaInput
+                        placeholder="Description (optional)"
+                        value={milestone.description}
                         onChange={(e) =>
                         updateMilestone(
                           milestone.id,
-                          'amount',
+                          'description',
                           e.target.value
                         )
-                        } />
+                        }
+                        rows={2} />
 
                         </div>
 
                         {/* Delete */}
                         <button
                       onClick={() => removeMilestone(milestone.id)}
-                      className="mt-1 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                      className="pt-2 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
                       disabled={milestones.length === 1}>
 
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
-
-                      {/* Row 2: Description */}
-                      <div className="pl-8">
-                        <TextareaInput
-                      placeholder="Describe what's included in this milestone (e.g. Full demo of existing cabinets, countertops, flooring. Haul-away included.)"
-                      value={milestone.description}
-                      onChange={(e) =>
-                      updateMilestone(
-                        milestone.id,
-                        'description',
-                        e.target.value
-                      )
-                      }
-                      rows={2} />
-
-                      </div>
-                    </div>
-                )}
+                  )}
+                  </div>
                 </div>
-
-                <SecondaryButton
-                onClick={addMilestone}
-                fullWidth
-                className="border-dashed">
-
-                  <Plus className="w-4 h-4 mr-2" /> Add Milestone
-                </SecondaryButton>
               </div>
             }
 
@@ -844,20 +1049,52 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
                   </div>
 
                   <div className="pt-4 border-t border-gray-200">
-                    <span className="block text-gray-500 text-sm mb-2">
-                      Milestones ({milestones.length})
-                    </span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="block text-gray-500 text-sm">
+                        Payment Schedule
+                      </span>
+                      <span
+                      className={`text-xs font-bold ${Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+
+                        {Math.abs(difference) < 0.01 ?
+                      'Balanced' :
+                      'Check Totals'}
+                      </span>
+                    </div>
                     <ul className="space-y-2">
+                      {materialAdvanceEnabled &&
+                    <li className="flex justify-between text-sm bg-white p-2 rounded border border-gray-100">
+                          <span className="text-gray-700 font-medium">
+                            Materials Advance ({materialAdvancePercent}%)
+                          </span>
+                          <span className="font-mono text-gray-900">
+                            ${materialAdvanceAmount.toLocaleString()}
+                          </span>
+                        </li>
+                    }
                       {milestones.map((m, i) =>
-                    <li key={m.id} className="flex justify-between text-sm">
+                    <li
+                      key={m.id}
+                      className="flex justify-between text-sm pl-2">
+
                           <span className="text-gray-700">
-                            {i + 1}. {m.name}
+                            {i + 1}. {m.name || 'Unnamed Milestone'}
                           </span>
                           <span className="font-mono text-gray-900">
                             ${(parseFloat(m.amount) || 0).toLocaleString()}
                           </span>
                         </li>
                     )}
+                      {holdbackAmount > 0 &&
+                    <li className="flex justify-between text-sm bg-white p-2 rounded border border-gray-100">
+                          <span className="text-gray-700 font-medium">
+                            Holdback ({holdbackPercent}%)
+                          </span>
+                          <span className="font-mono text-gray-900">
+                            ${holdbackAmount.toLocaleString()}
+                          </span>
+                        </li>
+                    }
                     </ul>
                   </div>
 
@@ -886,18 +1123,21 @@ export function NewProjectPage({ onNavigate, addToast }: NewProjectPageProps) {
             }
 
             {/* Footer */}
-            <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-between">
-              <SecondaryButton onClick={handleBack}>
-                {step === 1 ? 'Cancel' : 'Back'}
-              </SecondaryButton>
-              <PrimaryButton onClick={handleNext}>
-                {step === 4 ?
-                'Create & Send Contract' :
-                step === 1 && appliedTemplate ?
-                'Review Contract' :
-                'Next Step'}
-                {!(step === 4) && <ChevronRight className="w-4 h-4 ml-2" />}
-              </PrimaryButton>
+            <div className="p-6 bg-white border-t border-gray-200 flex justify-between items-center">
+              <button
+                onClick={handleBack}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+
+                <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+              </button>
+
+              <button
+                onClick={handleNext}
+                className="flex items-center px-6 py-2 text-sm font-medium text-white bg-[#1e3a5f] rounded-lg hover:bg-[#152a45] transition-colors">
+
+                {step === 4 ? 'Create & Send' : 'Next'}
+                {step === 4 && <MessageCircle className="w-4 h-4 ml-2" />}
+              </button>
             </div>
           </div>
         </div>

@@ -387,30 +387,15 @@ export function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Top Header */}
-        <header className="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700 p-1">
+        {/* Mobile hamburger - only visible on small screens */}
+        <div className="lg:hidden flex items-center px-4 py-3 flex-shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-500 hover:text-gray-700 p-1">
 
-              <Menu className="w-5 h-5" />
-            </button>
-            <h2 className="text-base font-semibold text-gray-900 lg:hidden">
-              {getPageTitle()}
-            </h2>
-            <h2 className="text-base font-semibold text-gray-900 hidden lg:block">
-              {getPageTitle()}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
-          </div>
-        </header>
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto pb-20 lg:pb-0">
