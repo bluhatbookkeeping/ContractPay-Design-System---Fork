@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Clock,
   ChevronRight,
+  ChevronLeft,
   Eye,
   EyeOff,
   Share2 } from
@@ -21,6 +22,7 @@ import { ContractPage } from './ContractPage';
 import { SchedulePage } from './SchedulePage';
 import { ChangeOrderPage } from './ChangeOrderPage';
 import { DailyLogPage } from './DailyLogPage';
+import { DrawRequestPage } from './DrawRequestPage';
 import { projects, draws, receipts } from '../data/mockData';
 interface ProjectDetailPageProps {
   projectId?: string;
@@ -43,23 +45,45 @@ export function ProjectDetailPage({
     'messages' |
     'timeline'>(
     'overview');
+  const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null);
   const project = projects.find((p) => p.id === projectId) || projects[0];
   const projectDraws = draws.filter((d) => d.projectId === project.id);
   const projectReceipts = receipts.filter((r) => r.projectId === project.id);
   const totalReceipts = projectReceipts.reduce((sum, r) => sum + r.amount, 0);
+  // Sort draws: pending first, then disputed, then approved
+  const sortedDraws = [...projectDraws].sort((a, b) => {
+    const order: Record<string, number> = {
+      pending: 0,
+      disputed: 1,
+      approved: 2
+    };
+    const aOrder = order[a.status] ?? 1;
+    const bOrder = order[b.status] ?? 1;
+    return aOrder - bOrder;
+  });
   // Compute real disputed amount from draws
   const disputedAmount = projectDraws.
   filter((d) => d.status === 'disputed' as any).
   reduce((sum, d) => sum + d.amount, 0);
-  // Find draw for a given milestone and navigate appropriately
+  // Find draw for a given milestone and open inline
   const handleMilestoneClick = (milestoneId: string) => {
     const draw = projectDraws.find((d) => d.milestoneId === milestoneId);
     if (draw) {
-      if (draw.status === 'disputed' as any) {
-        onNavigate('dispute', draw.id);
-      } else {
-        onNavigate('draw-detail', draw.id);
-      }
+      setSelectedDrawId(draw.id);
+      setActiveTab('draws');
+    }
+  };
+  // Handle navigation from embedded DrawRequestPage — keep it within the project
+  const handleDrawNavigate = (page: string, id?: string) => {
+    if (page === 'project-detail') {
+      // Going back to project — just clear the selected draw
+      setSelectedDrawId(null);
+    } else if (page === 'dispute') {
+      // For disputes, stay inline — we could handle this differently later
+      // For now, navigate to the dispute page
+      onNavigate(page, id);
+    } else {
+      onNavigate(page, id);
     }
   };
   const tabs = [
@@ -235,91 +259,113 @@ export function ProjectDetailPage({
 
         {activeTab === 'draws' &&
         <div className="max-w-3xl mx-auto space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-gray-900">Draw Requests</h3>
-              <span className="text-sm text-gray-500">
-                {projectDraws.length} total
-              </span>
-            </div>
-            {projectDraws.length === 0 ?
-          <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
-                <p className="text-gray-400 text-sm">
-                  No draw requests yet for this project.
-                </p>
-              </div> :
+            {selectedDrawId ?
+          <>
+                {/* Back to draws list */}
+                <button
+              onClick={() => setSelectedDrawId(null)}
+              className="flex items-center gap-1.5 text-sm font-medium text-navy-900 hover:text-navy-700 mb-4 transition-colors">
 
-          projectDraws.map((draw) => {
-            const isDisputed = draw.status === 'disputed' as any;
-            const isApproved = draw.status === 'approved';
-            const isPending = draw.status === 'pending';
-            return (
-              <button
-                key={draw.id}
-                onClick={() =>
-                isDisputed ?
-                onNavigate('dispute', draw.id) :
-                onNavigate('draw-detail', draw.id)
-                }
-                className={`w-full text-left bg-white rounded-xl border p-4 flex items-center gap-4 hover:shadow-sm transition-all ${isDisputed ? 'border-red-200 hover:border-red-300' : draw.type === 'change-order' ? 'border-amber-200 hover:border-amber-300' : 'border-gray-200 hover:border-[#1e3a5f]/30'}`}>
+                  <ChevronLeft className="w-4 h-4" />
+                  Back to All Draws
+                </button>
+                {/* Inline draw detail */}
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <DrawRequestPage
+                drawId={selectedDrawId}
+                onNavigate={handleDrawNavigate}
+                userRole={userRole}
+                addToast={() => {}} />
 
-                    {/* Status icon */}
-                    <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isDisputed ? 'bg-red-100 text-red-600' : isApproved ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                </div>
+              </> :
 
-                      {isDisputed ?
-                  <AlertTriangle className="w-5 h-5" /> :
-                  isApproved ?
-                  <CheckCircle className="w-5 h-5" /> :
+          <>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Draw Requests
+                  </h3>
+                  <span className="text-sm text-gray-500">
+                    {sortedDraws.length} total
+                  </span>
+                </div>
+                {sortedDraws.length === 0 ?
+            <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+                    <p className="text-gray-400 text-sm">
+                      No draw requests yet for this project.
+                    </p>
+                  </div> :
 
-                  <Clock className="w-5 h-5" />
-                  }
-                    </div>
+            sortedDraws.map((draw) => {
+              const isDisputed = draw.status === 'disputed' as any;
+              const isApproved = draw.status === 'approved';
+              const isPending = draw.status === 'pending';
+              return (
+                <button
+                  key={draw.id}
+                  onClick={() => setSelectedDrawId(draw.id)}
+                  className={`w-full text-left bg-white rounded-xl border p-4 flex items-center gap-4 hover:shadow-sm transition-all ${isDisputed ? 'border-red-200 hover:border-red-300' : draw.type === 'change-order' ? 'border-amber-200 hover:border-amber-300' : 'border-gray-200 hover:border-[#1e3a5f]/30'}`}>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <p className="font-semibold text-gray-900 truncate">
-                          {draw.milestoneName}
-                        </p>
-                        {draw.type === 'change-order' &&
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                            Change Order
-                          </span>
+                        {/* Status icon */}
+                        <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isDisputed ? 'bg-red-100 text-red-600' : isApproved ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+
+                          {isDisputed ?
+                    <AlertTriangle className="w-5 h-5" /> :
+                    isApproved ?
+                    <CheckCircle className="w-5 h-5" /> :
+
+                    <Clock className="w-5 h-5" />
                     }
-                        {isDisputed &&
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                            Disputed
-                          </span>
-                    }
-                        {isPending &&
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                            Pending
-                          </span>
-                    }
-                        {isApproved &&
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                            Approved
-                          </span>
-                    }
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {draw.dateSubmitted}
-                      </p>
-                    </div>
+                        </div>
 
-                    {/* Amount */}
-                    <div className="text-right flex-shrink-0">
-                      <p
-                    className={`font-bold font-mono text-lg ${isDisputed ? 'text-red-600' : isApproved ? 'text-green-600' : draw.type === 'change-order' ? 'text-amber-700' : 'text-[#1e3a5f]'}`}>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {draw.milestoneName}
+                            </p>
+                            {draw.type === 'change-order' &&
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                                Change Order
+                              </span>
+                      }
+                            {isDisputed &&
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                                Disputed
+                              </span>
+                      }
+                            {isPending &&
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                                Pending
+                              </span>
+                      }
+                            {isApproved &&
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                                Approved
+                              </span>
+                      }
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {draw.dateSubmitted}
+                          </p>
+                        </div>
 
-                        ${draw.amount.toLocaleString()}
-                      </p>
-                    </div>
+                        {/* Amount */}
+                        <div className="text-right flex-shrink-0">
+                          <p
+                      className={`font-bold font-mono text-lg ${isDisputed ? 'text-red-600' : isApproved ? 'text-green-600' : draw.type === 'change-order' ? 'text-amber-700' : 'text-[#1e3a5f]'}`}>
 
-                    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  </button>);
+                            ${draw.amount.toLocaleString()}
+                          </p>
+                        </div>
 
-          })
+                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      </button>);
+
+            })
+            }
+              </>
           }
           </div>
         }
