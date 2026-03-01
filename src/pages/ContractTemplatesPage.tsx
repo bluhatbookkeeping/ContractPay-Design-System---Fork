@@ -414,37 +414,6 @@ export function ContractTemplatesPage({
               }
               rows={6} />
 
-
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              <p className="text-sm text-gray-500">
-                Add payment milestones in the{' '}
-                <button
-                  onClick={() => setActiveTab('milestones')}
-                  className="text-navy-900 font-semibold underline underline-offset-2">
-
-                  Payment Milestones
-                </button>{' '}
-                tab
-              </p>
-              <div className="flex gap-3">
-                <PrimaryButton
-                  size="sm"
-                  onClick={handleCreateTemplate}
-                  disabled={!templateDraft.name.trim()}>
-
-                  <Check className="w-4 h-4 mr-1.5" /> Save Template
-                </PrimaryButton>
-                <SecondaryButton
-                  size="sm"
-                  onClick={() => {
-                    setIsCreatingTemplate(false);
-                    resetTemplateDraft();
-                  }}>
-
-                  Cancel
-                </SecondaryButton>
-              </div>
-            </div>
           </div>
         </div>);
 
@@ -520,33 +489,6 @@ export function ContractTemplatesPage({
               }
               rows={6} />
 
-
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              <p className="text-sm text-gray-500">
-                Edit milestones in the{' '}
-                <button
-                  onClick={() => setActiveTab('milestones')}
-                  className="text-navy-900 font-semibold underline underline-offset-2">
-
-                  Payment Milestones
-                </button>{' '}
-                tab
-              </p>
-              <div className="flex gap-3">
-                <PrimaryButton
-                  size="sm"
-                  onClick={() => handleSaveTemplate(editingTemplateId)}>
-
-                  <Check className="w-4 h-4 mr-1.5" /> Save Template
-                </PrimaryButton>
-                <SecondaryButton
-                  size="sm"
-                  onClick={() => setEditingTemplateId(null)}>
-
-                  Cancel
-                </SecondaryButton>
-              </div>
-            </div>
           </div>
         </div>);
 
@@ -1112,15 +1054,50 @@ export function ContractTemplatesPage({
     }
     </div>;
 
+  const isEditingOrCreating = isCreatingTemplate || !!editingTemplateId;
+  const handleCancelEditing = () => {
+    if (isCreatingTemplate) {
+      setIsCreatingTemplate(false);
+      resetTemplateDraft();
+    } else {
+      setEditingTemplateId(null);
+    }
+  };
+  const handleSaveCurrentTemplate = () => {
+    if (isCreatingTemplate) {
+      handleCreateTemplate();
+    } else if (editingTemplateId) {
+      handleSaveTemplate(editingTemplateId);
+    }
+  };
+  const getNextTab = (): {
+    id: 'details' | 'milestones' | 'clauses';
+    label: string;
+  } | null => {
+    if (activeTab === 'details')
+    return {
+      id: 'milestones',
+      label: 'Payment Milestones'
+    };
+    if (activeTab === 'milestones')
+    return {
+      id: 'clauses',
+      label: 'Scope Clauses'
+    };
+    return null;
+  };
+  const nextTab = getNextTab();
   return (
     <div className="flex flex-col bg-gray-50 -m-4 lg:-m-8 min-h-full">
       <HeaderBar
         title="Contract Templates"
         rightAction={
+        !isEditingOrCreating ?
         <PrimaryButton size="sm" onClick={startCreateTemplate}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Template
-          </PrimaryButton>
+              <Plus className="w-4 h-4 mr-2" />
+              New Template
+            </PrimaryButton> :
+        undefined
         } />
 
 
@@ -1155,6 +1132,47 @@ export function ContractTemplatesPage({
           {activeTab === 'milestones' && renderMilestones()}
           {activeTab === 'clauses' && renderClauses()}
         </div>
+
+        {/* Persistent Save/Cancel bar — visible on ALL tabs when editing or creating */}
+        {isEditingOrCreating &&
+        <div className="mt-6 bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between sticky bottom-4 shadow-lg z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-sm text-gray-600">
+                {isCreatingTemplate ? 'Creating' : 'Editing'}:{' '}
+                <span className="font-semibold text-gray-900">
+                  {templateDraft.name || 'Untitled Template'}
+                </span>
+              </span>
+              {templateDraft.milestones.length > 0 &&
+            <span className="text-xs text-gray-400 hidden sm:inline">
+                  · {templateDraft.milestones.length} milestone
+                  {templateDraft.milestones.length !== 1 ? 's' : ''}
+                </span>
+            }
+            </div>
+            <div className="flex items-center gap-3">
+              {nextTab &&
+            <button
+              onClick={() => setActiveTab(nextTab.id)}
+              className="text-sm font-medium text-navy-900 hover:text-navy-700 hidden sm:inline-flex items-center gap-1">
+
+                  Next: {nextTab.label} →
+                </button>
+            }
+              <SecondaryButton size="sm" onClick={handleCancelEditing}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+              size="sm"
+              onClick={handleSaveCurrentTemplate}
+              disabled={!templateDraft.name.trim()}>
+
+                <Check className="w-4 h-4 mr-1.5" /> Save Template
+              </PrimaryButton>
+            </div>
+          </div>
+        }
       </div>
     </div>);
 
