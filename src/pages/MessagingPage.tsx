@@ -15,16 +15,20 @@ interface MessagingPageProps {
   userRole: 'contractor' | 'homeowner';
   onNavigate?: (page: string, id?: string) => void;
   embedded?: boolean;
+  projectId?: string;
 }
 export function MessagingPage({
   userRole,
   onNavigate,
-  embedded = false
+  embedded = false,
+  projectId
 }: MessagingPageProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null
+    projectId || null
   );
   const [searchTerm, setSearchTerm] = useState('');
+  // If projectId is provided, lock to that project
+  const isProjectScoped = !!projectId;
   // Filter projects based on user role
   // For contractor: show all active/sent projects
   // For homeowner: show only their projects (in this mock, we assume 'p1' is theirs, or all for demo)
@@ -77,6 +81,10 @@ export function MessagingPage({
   }, [relevantProjects, userRole, searchTerm]);
   // Select first project by default on desktop if none selected
   useEffect(() => {
+    if (isProjectScoped) {
+      setSelectedProjectId(projectId);
+      return;
+    }
     if (
     !selectedProjectId &&
     conversations.length > 0 &&
@@ -85,7 +93,7 @@ export function MessagingPage({
     {
       setSelectedProjectId(conversations[0].project.id);
     }
-  }, [conversations, selectedProjectId, embedded]);
+  }, [conversations, selectedProjectId, embedded, isProjectScoped, projectId]);
   const activeConversation = conversations.find(
     (c) => c.project.id === selectedProjectId
   );
@@ -122,74 +130,76 @@ export function MessagingPage({
     <div
       className={`flex bg-white overflow-hidden border border-gray-200 rounded-xl ${embedded ? 'h-[500px]' : 'h-[calc(100vh-140px)]'}`}>
 
-      {/* Left Panel: Conversation List */}
+      {/* Left Panel: Conversation List — hidden when scoped to a single project */}
+      {!isProjectScoped &&
       <div
         className={`w-full lg:w-80 flex flex-col border-r border-gray-200 bg-white ${selectedProjectId ? 'hidden lg:flex' : 'flex'}`}>
 
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Messages</h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Messages</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
               type="text"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/20 focus:border-navy-900" />
 
+            </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {conversations.length > 0 ?
+          <div className="flex-1 overflow-y-auto">
+            {conversations.length > 0 ?
           conversations.map(({ project, lastMessage, unreadCount }) =>
           <button
             key={project.id}
             onClick={() => setSelectedProjectId(project.id)}
             className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedProjectId === project.id ? 'bg-blue-50/50 border-l-4 border-l-navy-900' : 'border-l-4 border-l-transparent'}`}>
 
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-semibold text-gray-900 truncate pr-2">
-                    {project.address}
-                  </h3>
-                  {lastMessage &&
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-semibold text-gray-900 truncate pr-2">
+                      {project.address}
+                    </h3>
+                    {lastMessage &&
               <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                      {lastMessage.timestamp.split(' ').slice(0, 2).join(' ')}
-                    </span>
+                        {lastMessage.timestamp.split(' ').slice(0, 2).join(' ')}
+                      </span>
               }
-                </div>
-                <div className="flex justify-between items-end">
-                  <div className="min-w-0 flex-1 mr-2">
-                    <p className="text-xs text-gray-500 font-medium mb-0.5">
-                      {userRole === 'contractor' ?
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="min-w-0 flex-1 mr-2">
+                      <p className="text-xs text-gray-500 font-medium mb-0.5">
+                        {userRole === 'contractor' ?
                   project.homeownerName :
                   project.contractorName}
-                    </p>
-                    <p
+                      </p>
+                      <p
                   className={`text-sm truncate ${unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
 
-                      {lastMessage ? lastMessage.content : 'No messages yet'}
-                    </p>
-                  </div>
-                  {unreadCount > 0 &&
+                        {lastMessage ? lastMessage.content : 'No messages yet'}
+                      </p>
+                    </div>
+                    {unreadCount > 0 &&
               <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-navy-900 text-white text-[10px] font-bold flex items-center justify-center">
-                      {unreadCount}
-                    </span>
+                        {unreadCount}
+                      </span>
               }
-                </div>
-              </button>
+                  </div>
+                </button>
           ) :
 
           <div className="p-8 text-center text-gray-500">
-              <p>No conversations found.</p>
-            </div>
+                <p>No conversations found.</p>
+              </div>
           }
+          </div>
         </div>
-      </div>
+      }
 
       {/* Right Panel: Chat View */}
       <div
-        className={`flex-1 flex flex-col bg-gray-50 ${!selectedProjectId ? 'hidden lg:flex' : 'flex'}`}>
+        className={`flex-1 flex flex-col bg-gray-50 ${!selectedProjectId && !isProjectScoped ? 'hidden lg:flex' : 'flex'}`}>
 
         {activeConversation ?
         <>

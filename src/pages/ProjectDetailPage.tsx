@@ -433,7 +433,11 @@ export function ProjectDetailPage({
 
         {activeTab === 'messages' &&
         <div className="h-[600px] bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <MessagingPage userRole={userRole} embedded />
+            <MessagingPage
+            userRole={userRole}
+            embedded
+            projectId={project.id} />
+
           </div>
         }
 
