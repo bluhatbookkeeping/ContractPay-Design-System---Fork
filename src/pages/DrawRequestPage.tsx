@@ -124,6 +124,92 @@ export function DrawRequestPage({
   };
   // Mock disputed draw state for demo
   const isDisputed = draw.status === 'disputed' as any;
+  // Build dynamic history based on draw status
+  const buildHistory = () => {
+    const events: {
+      id: string;
+      title: string;
+      timestamp: string;
+      status: 'success' | 'warning' | 'neutral' | 'error';
+      description?: string;
+    }[] = [];
+    let eventId = 1;
+    // Most recent events first
+    // Approved draws
+    if (draw.status === 'approved') {
+      events.push({
+        id: String(eventId++),
+        title: 'Funds Released from Escrow',
+        timestamp: 'Feb 20, 2025',
+        status: 'success',
+        description: `$${draw.amount.toLocaleString()} released to ${project?.contractorName}`
+      });
+      events.push({
+        id: String(eventId++),
+        title: 'Homeowner Approved Payment',
+        timestamp: 'Feb 19, 2025',
+        status: 'success',
+        description: `${project?.homeownerName} approved the draw request`
+      });
+    }
+    // Disputed draws
+    if (isDisputed) {
+      events.push({
+        id: String(eventId++),
+        title: 'Dispute Filed by Homeowner',
+        timestamp: 'Feb 14, 2025',
+        status: 'error',
+        description: `Funds held in escrow pending resolution`
+      });
+      events.push({
+        id: String(eventId++),
+        title: 'Homeowner Review Started',
+        timestamp: 'Feb 12, 2025',
+        status: 'warning',
+        description: `${project?.homeownerName} began reviewing the request`
+      });
+    }
+    // Pending draws with countdown
+    if (draw.status === 'pending' && draw.hoursRemaining) {
+      events.push({
+        id: String(eventId++),
+        title: 'Awaiting Homeowner Review',
+        timestamp: 'Now',
+        status: 'warning',
+        description: `${draw.hoursRemaining}h remaining before auto-release`
+      });
+    }
+    // Draw submitted (all statuses)
+    events.push({
+      id: String(eventId++),
+      title: 'Draw Request Submitted',
+      timestamp: draw.dateSubmitted,
+      status: 'neutral',
+      description: `${draw.milestoneName} · $${draw.amount.toLocaleString()}`
+    });
+    // Photos uploaded (if any)
+    if (draw.photos.length > 0) {
+      events.push({
+        id: String(eventId++),
+        title: `${draw.photos.length} Evidence Photo${draw.photos.length !== 1 ? 's' : ''} Uploaded`,
+        timestamp: draw.dateSubmitted,
+        status: 'neutral',
+        description: 'Contractor attached proof of completed work'
+      });
+    }
+    // Milestone work started (earliest event)
+    events.push({
+      id: String(eventId++),
+      title: `${draw.milestoneName} — Work Started`,
+      timestamp:
+      draw.type === 'change-order' ?
+      'Feb 10, 2025' :
+      project?.startDate || 'Jan 10, 2025',
+      status: 'success',
+      description: project?.address
+    });
+    return events;
+  };
   return (
     <div className="flex flex-col bg-gray-50 -m-4 lg:-m-8 min-h-full">
       {/* Submit Draw Confirmation */}
@@ -517,25 +603,10 @@ export function DrawRequestPage({
 
           {/* History */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">History</h3>
-            <Timeline
-              events={[
-              {
-                id: '1',
-                title: 'Draw Request Submitted',
-                timestamp: draw.dateSubmitted,
-                status: 'neutral',
-                description: `${draw.milestoneName} · $${draw.amount.toLocaleString()}`
-              },
-              {
-                id: '2',
-                title: 'Milestone Started',
-                timestamp: 'Feb 01, 2025',
-                status: 'success',
-                description: project ? project.address : undefined
-              }]
-              } />
-
+            <h3 className="text-lg font-bold text-gray-900 mb-6">
+              Draw Request History
+            </h3>
+            <Timeline events={buildHistory()} />
           </div>
         </div>
       </div>
