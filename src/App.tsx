@@ -112,6 +112,11 @@ const homeownerNavItems = [
   icon: <DollarSign className="w-5 h-5" />
 },
 {
+  id: 'receipts',
+  label: 'Receipts',
+  icon: <Receipt className="w-5 h-5" />
+},
+{
   id: 'messages',
   label: 'Messages',
   icon: <MessageSquare className="w-5 h-5" />
@@ -284,7 +289,7 @@ export function App() {
       case 'messages':
         return <MessagingPage userRole={userRole} onNavigate={handleNavigate} />;
       case 'receipts':
-        return <ReceiptsPage />;
+        return <ReceiptsPage userRole={userRole} />;
       case 'reviews':
         return <ReviewsPage />;
       case 'verification':

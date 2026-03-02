@@ -8,7 +8,8 @@ import {
   ChevronLeft,
   Eye,
   EyeOff,
-  Share2 } from
+  Share2,
+  Plus } from
 'lucide-react';
 import { HeaderBar } from '../components/Navigation';
 import { StatusBadge } from '../components/Badges';
@@ -24,6 +25,14 @@ import { ChangeOrderPage } from './ChangeOrderPage';
 import { DailyLogPage } from './DailyLogPage';
 import { DrawRequestPage } from './DrawRequestPage';
 import { projects, draws, receipts } from '../data/mockData';
+import { PrimaryButton } from '../components/Buttons';
+import { BottomSheet } from '../components/Modals';
+import {
+  TextInput,
+  SelectInput,
+  CurrencyInput } from
+'../components/FormElements';
+import { PhotoUpload } from '../components/PhotoComponents';
 interface ProjectDetailPageProps {
   projectId?: string;
   onNavigate: (page: string, id?: string) => void;
@@ -46,6 +55,16 @@ export function ProjectDetailPage({
     'timeline'>(
     'overview');
   const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null);
+  const [expandedReceiptId, setExpandedReceiptId] = useState<string | null>(
+    null
+  );
+  // Add Receipt form state
+  const [isAddReceiptOpen, setAddReceiptOpen] = useState(false);
+  const [newReceiptVendor, setNewReceiptVendor] = useState('');
+  const [newReceiptAmount, setNewReceiptAmount] = useState('');
+  const [newReceiptDate, setNewReceiptDate] = useState('');
+  const [newReceiptCategory, setNewReceiptCategory] = useState('materials');
+  const [newReceiptPhotos, setNewReceiptPhotos] = useState<string[]>([]);
   const project = projects.find((p) => p.id === projectId) || projects[0];
   const projectDraws = draws.filter((d) => d.projectId === project.id);
   const projectReceipts = receipts.filter((r) => r.projectId === project.id);
@@ -124,6 +143,45 @@ export function ProjectDetailPage({
     label: 'Timeline'
   }];
 
+  const categoryOptions = [
+  {
+    value: 'materials',
+    label: 'Materials'
+  },
+  {
+    value: 'labor',
+    label: 'Labor'
+  },
+  {
+    value: 'equipment',
+    label: 'Equipment'
+  },
+  {
+    value: 'permits',
+    label: 'Permits'
+  },
+  {
+    value: 'delivery',
+    label: 'Delivery'
+  },
+  {
+    value: 'misc',
+    label: 'Misc'
+  }];
+
+  const handleAddReceipt = () => {
+    // In a real app, this would save to the backend
+    setAddReceiptOpen(false);
+    setNewReceiptVendor('');
+    setNewReceiptAmount('');
+    setNewReceiptDate('');
+    setNewReceiptCategory('materials');
+    setNewReceiptPhotos([]);
+  };
+  const handleReceiptPhotoUpload = (files: FileList) => {
+    const newPhotos = Array.from(files).map((file) => URL.createObjectURL(file));
+    setNewReceiptPhotos((prev) => [...prev, ...newPhotos].slice(0, 1));
+  };
   return (
     <div className="flex flex-col bg-gray-50 -m-4 lg:-m-8 min-h-full">
       <HeaderBar
@@ -422,7 +480,19 @@ export function ProjectDetailPage({
                       {projectReceipts.
                 filter((r) => r.isShared).
                 map((receipt) =>
-                <ReceiptCard key={receipt.id} receipt={receipt} />
+                <ReceiptCard
+                  key={receipt.id}
+                  receipt={receipt}
+                  viewOnly
+                  isExpanded={expandedReceiptId === receipt.id}
+                  onToggleExpand={() =>
+                  setExpandedReceiptId(
+                    expandedReceiptId === receipt.id ?
+                    null :
+                    receipt.id
+                  )
+                  } />
+
                 )}
                     </div>
                   </>
@@ -445,6 +515,13 @@ export function ProjectDetailPage({
                       </span>
                     </p>
                   </div>
+                  <PrimaryButton
+                size="sm"
+                onClick={() => setAddReceiptOpen(true)}>
+
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Receipt
+                  </PrimaryButton>
                 </div>
                 <CostSummaryCard
               totalReceipts={totalReceipts}
@@ -469,7 +546,16 @@ export function ProjectDetailPage({
 
                 <div className="space-y-3">
                   {projectReceipts.map((receipt) =>
-              <ReceiptCard key={receipt.id} receipt={receipt} />
+              <ReceiptCard
+                key={receipt.id}
+                receipt={receipt}
+                isExpanded={expandedReceiptId === receipt.id}
+                onToggleExpand={() =>
+                setExpandedReceiptId(
+                  expandedReceiptId === receipt.id ? null : receipt.id
+                )
+                } />
+
               )}
                 </div>
               </>
@@ -515,6 +601,68 @@ export function ProjectDetailPage({
           </div>
         }
       </div>
+
+      {/* Add Receipt Bottom Sheet */}
+      <BottomSheet
+        isOpen={isAddReceiptOpen}
+        onClose={() => setAddReceiptOpen(false)}
+        title="Add Receipt">
+
+        <div className="space-y-6">
+          <TextInput
+            label="Vendor Name"
+            placeholder="e.g. Home Depot"
+            value={newReceiptVendor}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setNewReceiptVendor(e.target.value)
+            } />
+
+          <div className="grid grid-cols-2 gap-4">
+            <CurrencyInput
+              label="Amount"
+              placeholder="0.00"
+              value={newReceiptAmount}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNewReceiptAmount(e.target.value)
+              } />
+
+            <TextInput
+              label="Date"
+              type="date"
+              value={newReceiptDate}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setNewReceiptDate(e.target.value)
+              } />
+
+          </div>
+          <SelectInput
+            label="Category"
+            value={newReceiptCategory}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+            setNewReceiptCategory(e.target.value)
+            }
+            options={categoryOptions} />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Receipt Photo
+            </label>
+            <PhotoUpload
+              photos={newReceiptPhotos}
+              onUpload={handleReceiptPhotoUpload}
+              onRemove={(index) =>
+              setNewReceiptPhotos((prev) =>
+              prev.filter((_, i) => i !== index)
+              )
+              }
+              maxPhotos={1} />
+
+          </div>
+          <PrimaryButton fullWidth onClick={handleAddReceipt}>
+            Save Receipt
+          </PrimaryButton>
+        </div>
+      </BottomSheet>
     </div>);
 
 }
